@@ -1,0 +1,1820 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>薬機法チェッカー v3 AI版｜ORYZAE</title>
+<style>
+:root{
+  --bg:#f9f7f4;--white:#fff;--brand:#6b4c2a;--brand-light:#f0e8dc;--brand-mid:#c49a6c;
+  --danger:#c0392b;--danger-bg:#fdf0ef;--warn:#d35400;--warn-bg:#fef4ec;
+  --ok:#27ae60;--ok-bg:#edfaf3;--info:#2563eb;--info-bg:#eff6ff;
+  --purple:#7c3aed;--purple-bg:#faf5ff;
+  --gray:#6b7280;--gray-light:#f3f4f6;--border:#e5e7eb;--text:#1f2937;--text-light:#4b5563;
+  --shadow:0 2px 10px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Kaku Gothic ProN','Hiragino Sans','YuGothic',sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.6}
+
+/* Header */
+header{background:var(--brand);color:#fff;padding:14px 22px;display:flex;align-items:center;gap:12px}
+.logo{font-size:19px;font-weight:700;letter-spacing:.04em}
+.logo-sub{font-size:11px;opacity:.7;margin-top:1px}
+.hbadge{margin-left:auto;display:flex;gap:7px;align-items:center}
+.hbadge span{background:rgba(255,255,255,.2);border-radius:20px;padding:3px 10px;font-size:11px;white-space:nowrap}
+.ai-mode-badge{background:linear-gradient(135deg,#10b981,#059669)!important;font-weight:700}
+.regex-mode-badge{background:rgba(255,255,255,.15)!important}
+
+/* Layout */
+.container{max-width:960px;margin:0 auto;padding:20px 16px}
+.card{background:var(--white);border-radius:14px;box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+.card-title{font-size:12px;font-weight:700;color:var(--brand);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+
+/* Chips */
+.chip-group{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.chip{padding:5px 13px;border-radius:20px;border:2px solid var(--border);background:var(--white);cursor:pointer;font-size:13px;font-weight:600;color:var(--text-light);transition:all .15s;user-select:none}
+.chip:hover{border-color:var(--brand-mid)}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.chip.on.med{background:#0891b2;border-color:#0891b2}
+
+/* Switch */
+.sw-row{display:flex;align-items:center;gap:9px;padding:7px 0}
+.sw{position:relative;display:inline-block;width:42px;height:23px;flex-shrink:0}
+.sw input{opacity:0;width:0;height:0}
+.sw-track{position:absolute;inset:0;background:#d1d5db;border-radius:12px;transition:.2s;cursor:pointer}
+.sw input:checked+.sw-track{background:var(--ok)}
+.sw-track::before{content:'';position:absolute;width:17px;height:17px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.sw input:checked+.sw-track::before{transform:translateX(19px)}
+.sw-label{font-size:13px;font-weight:600;cursor:pointer}
+.sw-desc{font-size:11px;color:var(--gray);margin-left:auto}
+
+/* Divider */
+.divider{border:none;border-top:1.5px solid var(--border);margin:12px 0}
+
+/* AI Settings Collapsible */
+.ai-panel{background:#f0fdf4;border:1.5px solid #a7f3c8;border-radius:10px;margin-bottom:12px;overflow:hidden;transition:all .2s}
+.ai-panel.closed .ai-body{display:none}
+.ai-header{display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;user-select:none}
+.ai-header:hover{background:rgba(0,0,0,.02)}
+.ai-header-title{font-size:13px;font-weight:700;color:#065f46;flex:1}
+.ai-status{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px}
+.ai-status.active{background:#10b981;color:#fff}
+.ai-status.inactive{background:#e5e7eb;color:var(--gray)}
+.ai-body{padding:12px 14px;border-top:1px solid #a7f3c8}
+.api-key-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.api-key-input{flex:1;border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-family:monospace}
+.api-key-input:focus{outline:none;border-color:#10b981}
+.api-note{font-size:11px;color:#065f46;background:rgba(16,185,129,.08);border-radius:6px;padding:6px 10px;line-height:1.6}
+
+/* Mode indicator */
+.mode-row{display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 12px;border-radius:8px}
+.mode-row.ai{background:#f0fdf4;border:1px solid #a7f3c8}
+.mode-row.regex{background:var(--gray-light);border:1px solid var(--border)}
+.mode-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.mode-dot.ai{background:#10b981}
+.mode-dot.regex{background:var(--gray)}
+.mode-text{font-size:12px;font-weight:600}
+
+/* Textarea */
+textarea,#fixText{width:100%;border:2px solid var(--border);border-radius:10px;padding:12px;font-size:14px;font-family:inherit;line-height:1.75;resize:vertical;min-height:150px;transition:border-color .2s;color:var(--text)}
+textarea:focus,#fixText:focus{outline:none;border-color:var(--brand-mid)}
+.char-count{text-align:right;font-size:12px;color:var(--gray);margin-top:3px}
+.preset-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:all .15s;text-decoration:none}
+.btn-primary{background:var(--brand);color:#fff;width:100%;justify-content:center;font-size:15px;padding:13px;border-radius:10px;letter-spacing:.04em;margin-top:12px}
+.btn-primary:hover{background:#5a3d22}
+.btn-primary.ai-mode{background:linear-gradient(135deg,#059669,#0891b2)}
+.btn-primary.ai-mode:hover{background:linear-gradient(135deg,#047857,#0e7490)}
+.btn-primary:disabled{background:#ccc;cursor:not-allowed}
+.btn-ghost{background:var(--gray-light);color:var(--text-light);border:1.5px solid var(--border)}
+.btn-ghost:hover{background:var(--border)}
+.btn-ok{background:var(--ok-bg);color:var(--ok);border:1.5px solid #a7f3c8}
+.btn-ok:hover{background:#d1fae5}
+.btn-copy{background:var(--info-bg);color:var(--info);border:1.5px solid #bfdbfe}
+.btn-copy:hover{background:#dbeafe}
+.btn-slack{background:#4a154b;color:#fff;border:1.5px solid #4a154b}
+.btn-slack:hover{background:#611f69}
+.btn-sm{padding:5px 11px;font-size:12px;border-radius:6px}
+.btn-danger{background:var(--danger-bg);color:var(--danger);border:1.5px solid #fdc5c0}
+.btn-danger:hover{background:#fde8e7}
+.copied-msg{font-size:12px;color:var(--ok);font-weight:700;opacity:0;transition:opacity .3s}
+.copied-msg.show{opacity:1}
+
+/* ─── Help Modal ─── */
+.help-btn{background:rgba(255,255,255,.18);color:#fff;border:1.5px solid rgba(255,255,255,.4);border-radius:20px;padding:4px 13px;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s;white-space:nowrap}
+.help-btn:hover{background:rgba(255,255,255,.32)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto}
+.modal-overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:16px;width:100%;max-width:780px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.25);margin:auto}
+.modal-header{background:var(--brand);color:#fff;padding:16px 22px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:1}
+.modal-header h2{font-size:16px;font-weight:700;flex:1;margin:0}
+.modal-close{background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.modal-close:hover{background:rgba(255,255,255,.35)}
+.modal-body{padding:22px 24px}
+.manual-section{margin-bottom:28px}
+.manual-section h3{font-size:14px;font-weight:700;color:var(--brand);border-left:4px solid var(--brand);padding-left:10px;margin-bottom:12px}
+.manual-section h4{font-size:13px;font-weight:700;color:var(--text);margin:12px 0 6px}
+.manual-section p,.manual-section li{font-size:13px;color:var(--text);line-height:1.75}
+.manual-section ul,.manual-section ol{padding-left:20px;margin:6px 0}
+.manual-step{display:flex;gap:12px;margin-bottom:10px;background:var(--gray-light);border-radius:10px;padding:10px 12px;align-items:flex-start}
+.manual-step-num{background:var(--brand);color:#fff;border-radius:8px;min-width:38px;height:38px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:8px;font-weight:700;line-height:1.2;flex-shrink:0}
+.manual-step-num span{font-size:14px}
+.manual-step-body h4{margin:0 0 3px;font-size:13px;font-weight:700;color:var(--brand)}
+.manual-step-body p{margin:0;font-size:12.5px;color:var(--text-light);line-height:1.6}
+.risk-table{width:100%;border-collapse:collapse;font-size:12.5px;margin:8px 0}
+.risk-table th{background:var(--brand);color:#fff;padding:7px 10px;text-align:left}
+.risk-table td{padding:7px 10px;border-bottom:1px solid var(--border)}
+.risk-table tr:nth-child(even) td{background:var(--gray-light)}
+.risk-high td:first-child{color:var(--danger);font-weight:700}
+.risk-mid td:first-child{color:var(--warn);font-weight:700}
+.risk-low td:first-child{color:#2563eb;font-weight:700}
+.risk-safe td:first-child{color:var(--ok);font-weight:700}
+.manual-tip{background:var(--ok-bg);border:1px solid #a7f3c8;border-radius:8px;padding:10px 13px;font-size:12.5px;color:#065f46;margin:8px 0}
+.manual-warn{background:var(--warn-bg);border:1px solid #fcd8b0;border-radius:8px;padding:10px 13px;font-size:12.5px;color:var(--warn);margin:8px 0}
+.faq-item{margin-bottom:14px}
+.faq-q{font-size:13px;font-weight:700;color:var(--brand);margin-bottom:4px}
+.faq-a{font-size:13px;color:var(--text-light);line-height:1.7;padding-left:12px;border-left:3px solid var(--brand-light)}
+
+/* Spinner */
+.spinner{display:none;width:18px;height:18px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.btn-primary.loading .spinner{display:block}
+.btn-primary.loading .btn-label{opacity:.7}
+
+/* Score banner */
+.score-banner{border-radius:12px;padding:15px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.score-banner.safe{background:var(--ok-bg);border:1.5px solid #a7f3c8}
+.score-banner.warn{background:var(--warn-bg);border:1.5px solid #fcd8b0}
+.score-banner.danger{background:var(--danger-bg);border:1.5px solid #fdc5c0}
+.score-icon{font-size:32px;line-height:1;flex-shrink:0}
+.score-title{font-size:16px;font-weight:700}
+.score-sub{font-size:13px;margin-top:2px;color:var(--text-light)}
+.export-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+.ai-analyzed-tag{font-size:11px;background:linear-gradient(135deg,#10b981,#0891b2);color:#fff;border-radius:10px;padding:2px 8px;font-weight:700;display:inline-flex;align-items:center;gap:3px}
+
+/* Tabs */
+.tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:14px;overflow-x:auto}
+.tab{padding:8px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--gray);border-bottom:2.5px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .15s}
+.tab:hover{color:var(--brand)}
+.tab.active{color:var(--brand);border-bottom-color:var(--brand)}
+.tab .tab-count{font-size:10px;background:var(--danger);color:#fff;border-radius:8px;padding:1px 5px;margin-left:3px}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* Highlights */
+mark.high{background:#fee2e2;border-bottom:2px solid var(--danger);border-radius:2px;padding:0 1px}
+mark.mid{background:#fef3c7;border-bottom:2px solid #f59e0b;border-radius:2px;padding:0 1px}
+mark.low{background:#dbeafe;border-bottom:2px solid #3b82f6;border-radius:2px;padding:0 1px}
+mark.keihyo{background:#f3e8ff;border-bottom:2px solid #9333ea;border-radius:2px;padding:0 1px}
+.preview-box{background:var(--gray-light);border-radius:10px;padding:14px;font-size:14px;line-height:1.9;word-break:break-all;border:1.5px solid var(--border)}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-light)}
+.legend-dot{width:12px;height:12px;border-radius:2px}
+
+/* Issue item */
+.issue-list{display:flex;flex-direction:column;gap:11px}
+.issue-item{border-radius:10px;padding:14px;border-left:4px solid}
+.issue-item.high{background:var(--danger-bg);border-color:var(--danger)}
+.issue-item.mid{background:var(--warn-bg);border-color:#f59e0b}
+.issue-item.low{background:#eff6ff;border-color:#3b82f6}
+.issue-item.keihyo{background:var(--purple-bg);border-color:var(--purple)}
+.issue-header{display:flex;align-items:center;gap:7px;margin-bottom:6px;flex-wrap:wrap}
+.risk-badge{font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px}
+.risk-badge.high{background:var(--danger);color:#fff}
+.risk-badge.mid{background:#f59e0b;color:#fff}
+.risk-badge.low{background:#3b82f6;color:#fff}
+.risk-badge.keihyo{background:var(--purple);color:#fff}
+.law-badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:8px;background:#e0e7ff;color:#4338ca}
+.issue-phrase{font-weight:700;font-size:14px}
+.issue-reason{font-size:13px;color:var(--text-light);margin-bottom:9px}
+.alt-box{background:rgba(255,255,255,.75);border-radius:8px;padding:10px}
+.alt-title{font-size:11px;font-weight:700;color:var(--ok);margin-bottom:5px}
+.alt-item{font-size:13px;display:flex;align-items:flex-start;gap:5px;margin-bottom:3px}
+.alt-item::before{content:'✓';color:var(--ok);font-weight:700;flex-shrink:0}
+.medium-note{font-size:11px;color:var(--purple);background:var(--purple-bg);border-radius:6px;padding:5px 8px;margin-top:5px}
+.feedback-row{display:flex;gap:6px;margin-top:8px;align-items:center}
+.fp-msg{font-size:11px;color:var(--ok);font-weight:700;opacity:0;transition:opacity .3s}
+.fp-msg.show{opacity:1}
+
+/* Counters */
+.counter-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+.count-pill{display:flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;font-size:12px;font-weight:700}
+.count-pill.high{background:var(--danger-bg);color:var(--danger);border:1px solid #fdc5c0}
+.count-pill.mid{background:var(--warn-bg);color:var(--warn);border:1px solid #fcd8b0}
+.count-pill.low{background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe}
+.count-pill.keihyo{background:var(--purple-bg);color:var(--purple);border:1px solid #e9d5ff}
+
+/* Fix tab */
+.fix-note{font-size:12px;color:var(--gray);background:var(--gray-light);border-radius:8px;padding:8px 11px;margin-bottom:9px}
+.fix-actions{display:flex;gap:7px;margin-bottom:9px;flex-wrap:wrap;align-items:center}
+#fixText{min-height:170px;font-size:14px;background:#fffbf5;border-color:var(--brand-mid)}
+
+/* Library */
+.lib-cats{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+.lib-cat-btn{padding:5px 11px;border-radius:16px;border:1.5px solid var(--border);background:var(--white);cursor:pointer;font-size:12px;font-weight:600;color:var(--gray);transition:all .15s}
+.lib-cat-btn.active{background:var(--brand-light);border-color:var(--brand-mid);color:var(--brand)}
+.lib-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+@media(max-width:560px){.lib-grid{grid-template-columns:1fr}}
+.lib-item{background:var(--ok-bg);border:1.5px solid #a7f3c8;border-radius:8px;padding:9px 11px;display:flex;justify-content:space-between;align-items:flex-start;gap:7px;cursor:pointer;transition:background .15s}
+.lib-item:hover{background:#d1fae5}
+.lib-text{font-size:13px;font-weight:600;color:var(--text);flex:1}
+.lib-tag{font-size:10px;color:var(--ok);background:rgba(39,174,96,.12);padding:2px 6px;border-radius:10px;white-space:nowrap}
+
+/* Tips */
+.tips-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+@media(max-width:560px){.tips-grid{grid-template-columns:1fr}}
+.tip-card{background:var(--gray-light);border-radius:8px;padding:12px}
+.tip-title{font-size:11px;font-weight:700;color:var(--brand);margin-bottom:4px}
+.tip-ng{font-size:13px;color:var(--danger)}
+.tip-ok{font-size:13px;color:var(--ok);margin-top:3px}
+.arrow-txt{color:var(--gray);font-size:11px;margin:1px 0}
+
+/* History */
+.hist-item{border:1.5px solid var(--border);border-radius:10px;margin-bottom:9px;overflow:hidden}
+.hist-header{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;background:var(--white);transition:background .15s}
+.hist-header:hover{background:var(--gray-light)}
+.hist-date{font-size:11px;color:var(--gray);white-space:nowrap}
+.hist-snippet{flex:1;font-size:13px;color:var(--text);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.hist-risk{font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px}
+.hist-risk.high{background:var(--danger-bg);color:var(--danger)}
+.hist-risk.mid{background:var(--warn-bg);color:var(--warn)}
+.hist-risk.safe{background:var(--ok-bg);color:var(--ok)}
+.hist-body{display:none;padding:12px 14px;border-top:1px solid var(--border);background:var(--gray-light)}
+.hist-body.open{display:block}
+.hist-actions{display:flex;gap:6px;margin-top:8px}
+.hist-empty{text-align:center;padding:32px;color:var(--gray);font-size:14px}
+.hist-count{font-size:12px;color:var(--gray);margin-bottom:10px}
+
+/* Learning */
+.learn-section{margin-bottom:20px}
+.learn-section-title{font-size:13px;font-weight:700;color:var(--brand);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.learn-item{display:flex;align-items:center;gap:8px;padding:8px 11px;background:var(--gray-light);border-radius:8px;margin-bottom:6px;font-size:13px}
+.learn-item.fp{background:var(--danger-bg)}
+.learn-item.approved{background:var(--ok-bg)}
+.learn-item-text{flex:1}
+.learn-add-row{display:flex;gap:7px;margin-top:8px}
+.learn-add-row input{flex:1;border:1.5px solid var(--border);border-radius:8px;padding:7px 11px;font-size:13px;font-family:inherit}
+.learn-add-row input:focus{outline:none;border-color:var(--brand-mid)}
+.learn-export-row{display:flex;gap:7px;margin-top:12px;flex-wrap:wrap}
+.context-textarea{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px;font-size:13px;font-family:inherit;min-height:90px;resize:vertical}
+.context-textarea:focus{outline:none;border-color:var(--brand-mid)}
+.learn-stats{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.stat-pill{background:var(--gray-light);border-radius:8px;padding:8px 14px;font-size:12px;text-align:center}
+.stat-pill strong{display:block;font-size:18px;color:var(--brand);font-weight:700}
+
+/* Empty state */
+.empty-state{text-align:center;padding:34px 20px;color:var(--gray)}
+.empty-state .emoji{font-size:36px;margin-bottom:9px}
+
+/* Notice */
+.notice{background:var(--brand-light);border-radius:8px;padding:11px 13px;font-size:12px;color:var(--brand);margin-top:16px;line-height:1.7}
+
+/* Safe expressions */
+.safe-exprs{margin-top:12px;padding:11px;background:var(--ok-bg);border-radius:8px;border:1px solid #a7f3c8}
+.safe-exprs-title{font-size:12px;font-weight:700;color:var(--ok);margin-bottom:6px}
+.strategic-advice-box{margin-top:12px;padding:12px;background:#f0f9ff;border-radius:8px;border:1px solid #7dd3fc;font-size:13px;line-height:1.6;color:#0369a1}
+.strategic-advice-title{font-size:12px;font-weight:700;color:#0284c7;margin-bottom:6px}
+.channel-advice-box{margin-top:10px;padding:12px;background:#faf5ff;border-radius:8px;border:1px solid #d8b4fe;font-size:13px;line-height:1.6;color:#6b21a8}
+.channel-advice-title{font-size:12px;font-weight:700;color:#7c3aed;margin-bottom:6px}
+.safe-tag{display:inline-block;font-size:12px;background:rgba(39,174,96,.15);color:#065f46;border-radius:10px;padding:2px 9px;margin:2px}
+
+/* Print */
+@media print{
+  header{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .no-print{display:none!important}
+  .card{box-shadow:none;border:1px solid var(--border)}
+  .issue-item{break-inside:avoid}
+  #results{display:block!important}
+  .tab-content{display:block!important}
+  .tabs{display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">薬機法チェッカー</div>
+    <div class="logo-sub">食品・化粧品の広告表現リスク診断 ＋ AI精度向上・学習機能</div>
+  </div>
+  <div class="hbadge">
+    <span id="headerVer">v3.0</span>
+    <span id="headerModeBadge" class="regex-mode-badge">正規表現モード</span>
+    <button class="help-btn" onclick="openHelp()">📖 使い方</button>
+  </div>
+</header>
+
+<!-- ════ HELP MODAL ════ -->
+<div class="modal-overlay" id="helpModal" onclick="closeHelpOnBg(event)">
+  <div class="modal-box" id="helpModalBox">
+    <div class="modal-header">
+      <span style="font-size:20px">📖</span>
+      <h2>薬機法チェッカー ORYZAE Edition — 使い方マニュアル</h2>
+      <button class="modal-close" onclick="closeHelp()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- 概要 -->
+      <div class="manual-section">
+        <h3>1　このツールについて</h3>
+        <p>広告・SNS・商品説明文などに含まれる<strong>薬機法・景表法上のリスクをAIが自動でチェック</strong>し、代替表現を提案する社内ツールです。ブラウザ上で動作し、インストール不要で使えます。</p>
+        <div class="manual-tip">💡 このツールはあくまで参考ツールです。最終判断は必ず担当者・法務専門家が確認してください。</div>
+      </div>
+
+      <!-- リスクレベル -->
+      <div class="manual-section">
+        <h3>2　リスクレベルの見方</h3>
+        <table class="risk-table">
+          <tr><th>レベル</th><th>意味</th><th>対応</th></tr>
+          <tr class="risk-high"><td>🔴 高リスク</td><td>法的リスクが高い表現</td><td>使用不可。必ず変更してください</td></tr>
+          <tr class="risk-mid"><td>🟡 中リスク</td><td>文脈によっては問題になる可能性</td><td>要確認。代替表現を検討</td></tr>
+          <tr class="risk-low"><td>🔵 要注意</td><td>軽微な注意点</td><td>念のため確認を推奨</td></tr>
+          <tr class="risk-safe"><td>✅ 問題なし</td><td>チェック通過</td><td>安全に使用できます</td></tr>
+        </table>
+      </div>
+
+      <!-- 基本的な使い方 -->
+      <div class="manual-section">
+        <h3>3　基本的な使い方</h3>
+        <div class="manual-step">
+          <div class="manual-step-num">STEP<span>1</span></div>
+          <div class="manual-step-body"><h4>カテゴリを選ぶ</h4><p>「食品・サプリメント」「化粧品・スキンケア」からチェック対象を選択。両方選択も可能です。</p></div>
+        </div>
+        <div class="manual-step">
+          <div class="manual-step-num">STEP<span>2</span></div>
+          <div class="manual-step-body"><h4>媒体モードを選ぶ</h4><p>通常 / SNS / LP・広告 / 商品パッケージ から用途に合ったモードを選択。機能性表示食品の場合は専用モードをONに。</p></div>
+        </div>
+        <div class="manual-step">
+          <div class="manual-step-num">STEP<span>3</span></div>
+          <div class="manual-step-body"><h4>テキストを貼り付ける</h4><p>チェックしたい広告コピー・SNSキャプション・商品説明文などをテキストエリアに貼り付けます。</p></div>
+        </div>
+        <div class="manual-step">
+          <div class="manual-step-num">STEP<span>4</span></div>
+          <div class="manual-step-body"><h4>チェック実行</h4><p>「🔍 薬機法チェックを実行」ボタンをクリック。AI分析モードの場合は数秒かかります。</p></div>
+        </div>
+        <div class="manual-step">
+          <div class="manual-step-num">STEP<span>5</span></div>
+          <div class="manual-step-body"><h4>結果を確認・活用</h4><p>問題点が一覧表示されます。各問題に代替表現が提示され、「自動修正テキストを生成」で一括修正案も確認できます。「💬 Slackに共有」で結果をそのままSlackへ貼り付けられます。</p></div>
+        </div>
+      </div>
+
+      <!-- 各機能 -->
+      <div class="manual-section">
+        <h3>4　結果画面の見方</h3>
+        <ul>
+          <li><strong>📋 チェック結果タブ</strong> — 検出された問題の一覧。リスクレベル・理由・代替表現が表示されます。</li>
+          <li><strong>🖊 ハイライトタブ</strong> — 入力テキスト上で問題箇所をカラーハイライト表示します。</li>
+          <li><strong>✏️ 修正候補タブ</strong> — 「自動修正テキストを生成」で問題箇所を代替表現に置換した修正案を一括生成します。</li>
+          <li><strong>📚 OK表現ライブラリ</strong> — ORYZAEで使えるOK表現サンプルを参照できます。</li>
+          <li><strong>💬 Slackに共有</strong> — Slack向けMDフォーマットで結果をコピー。そのまま貼り付けできます。</li>
+          <li><strong>🖨 印刷・PDF保存</strong> — ブラウザの印刷機能でPDF保存できます。</li>
+        </ul>
+      </div>
+
+      <!-- AI分析モード -->
+      <div class="manual-section">
+        <h3>5　AI分析モードと正規表現モード</h3>
+        <table class="risk-table">
+          <tr><th></th><th>AI分析モード（Gemini 2.5 Flash）</th><th>正規表現モード</th></tr>
+          <tr><td>精度</td><td>◎ 高い（文脈を理解）</td><td>○ 標準</td></tr>
+          <tr><td>速度</td><td>○ 数秒</td><td>◎ 即時</td></tr>
+          <tr><td>オフライン</td><td>× 使用不可</td><td>◎ 使用可</td></tr>
+          <tr><td>自動選択</td><td colspan="2">API利用可能時はAIモード、不可時は正規表現モードに自動切替</td></tr>
+        </table>
+        <p style="margin-top:8px;font-size:12.5px;color:var(--gray)">無料プランは1分間に10リクエストの制限があります。APIエラーが出た場合は1〜2分待ってから再試行してください。</p>
+      </div>
+
+      <!-- AI学習 -->
+      <div class="manual-section">
+        <h3>6　AI学習機能の活用</h3>
+        <div class="manual-step">
+          <div class="manual-step-num">①</div>
+          <div class="manual-step-body"><h4>誤検知を報告する</h4><p>「誤検知として登録」ボタンをクリック。次回から同じ表現はスキップされます。<br>例：「アレルギーをお持ちの方はご注意ください」→ 問題なし表現なのに誤検知される場合</p></div>
+        </div>
+        <div class="manual-step">
+          <div class="manual-step-num">②</div>
+          <div class="manual-step-body"><h4>承認済み表現を登録</h4><p>会社として使用を承認した表現を「承認済み表現として登録」ボタンで登録できます。</p></div>
+        </div>
+        <div class="manual-step">
+          <div class="manual-step-num">③</div>
+          <div class="manual-step-body"><h4>会社・製品情報を設定</h4><p>「⚙️ AI設定パネル」から製品情報を登録すると、より文脈を理解した判定ができます。</p></div>
+        </div>
+        <div class="manual-warn">📌 学習データはブラウザのlocalStorageに保存されます。同じブラウザ・端末でアクセスすれば引き継がれますが、シークレットモードではリセットされます。</div>
+      </div>
+
+      <!-- FAQ -->
+      <div class="manual-section">
+        <h3>7　よくある質問</h3>
+        <div class="faq-item">
+          <div class="faq-q">Q1. ツールが白い画面のまま表示されない</div>
+          <div class="faq-a">ブラウザのキャッシュをクリアしてから再度開いてください。Chrome / Edge の最新版をご利用ください。</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">Q2. チェック結果は絶対ですか？</div>
+          <div class="faq-a">このツールはあくまで参考ツールです。最終判断は必ず担当者や法務・薬機法の専門家が確認してください。特に新商品・新規キャンペーンの場合は専門家への相談を推奨します。</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">Q3. 誤検知が多い場合は？</div>
+          <div class="faq-a">「誤検知として登録」機能を積極的に活用してください。登録した誤検知パターンはAI・正規表現どちらのモードでも反映されます。</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">Q4. APIエラーが頻繁に出る</div>
+          <div class="faq-a">無料プランのGemini APIは1分間に10リクエストの制限があります。1〜2分待ってから再試行してください。連続使用の場合は間隔を空けることをお勧めします。</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q">Q5. 改善要望・バグ報告はどこへ？</div>
+          <div class="faq-a">Slackの #法務・薬機法 チャンネルまたはシステム担当者までご連絡ください。</div>
+        </div>
+      </div>
+
+    </div><!-- /modal-body -->
+  </div><!-- /modal-box -->
+</div><!-- /modal-overlay -->
+
+<div class="container">
+
+<!-- ════ INPUT ════ -->
+<div class="card no-print">
+  <div class="card-title">① 商品カテゴリ</div>
+  <div class="chip-group" id="catGroup">
+    <button class="chip on" data-cat="food">🌾 食品・サプリメント</button>
+    <button class="chip on" data-cat="cosmetic">✨ 化粧品・スキンケア</button>
+    <button class="chip" data-cat="quasi">💊 医薬部外品</button>
+  </div>
+
+  <hr class="divider">
+  <div class="card-title">② 媒体</div>
+  <div id="medGroup">
+    <div style="font-size:11px;color:var(--gray);margin-bottom:4px">オンライン</div>
+    <div class="chip-group">
+      <button class="chip med on" data-med="general">📄 汎用</button>
+      <button class="chip med" data-med="amazon">📦 Amazon</button>
+      <button class="chip med" data-med="rakuten">🏬 楽天</button>
+      <button class="chip med" data-med="shopify">🛒 D2C</button>
+      <button class="chip med" data-med="tiktok">🎵 TikTok</button>
+      <button class="chip med" data-med="sns">📱 SNS広告</button>
+    </div>
+    <div style="font-size:11px;color:var(--gray);margin-top:8px;margin-bottom:4px">オフライン・印刷物</div>
+    <div class="chip-group">
+      <button class="chip med" data-med="package">📦 パッケージ</button>
+      <button class="chip med" data-med="flyer">📰 チラシ</button>
+      <button class="chip med" data-med="pop">🏪 POP</button>
+      <button class="chip med" data-med="catalog">📖 カタログ</button>
+      <button class="chip med" data-med="press">📣 プレスリリース</button>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <div class="card-title">③ チェック設定</div>
+  <div class="sw-row">
+    <label class="sw"><input type="checkbox" id="swKeihyo" checked><span class="sw-track"></span></label>
+    <span class="sw-label">景表法も同時チェック</span>
+    <span class="sw-desc">優良誤認・No.1表示等</span>
+  </div>
+  <div class="sw-row">
+    <label class="sw"><input type="checkbox" id="swKinousei"><span class="sw-track"></span></label>
+    <span class="sw-label">機能性表示食品モード</span>
+    <span class="sw-desc">届出済み前提で判定を緩和</span>
+  </div>
+
+  <hr class="divider">
+  <!-- AI設定 -->
+  <div class="ai-panel closed" id="aiPanel">
+    <div class="ai-header" onclick="toggleAiPanel()">
+      <span style="font-size:18px">🤖</span>
+      <span class="ai-header-title">AI分析モード設定（Gemini API・無料）</span>
+      <span class="ai-status inactive" id="aiStatusBadge">未設定</span>
+      <span style="font-size:12px;color:var(--gray);margin-left:4px" id="aiPanelArrow">▼</span>
+    </div>
+    <div class="ai-body">
+      <div class="api-note" style="margin-bottom:10px">
+        ✅ ORYZAE共通のGemini APIキーが設定済みです。ファイルを開くだけでAI分析が使えます。<br>
+        個人のAPIキーで上書きしたい場合のみ、こちらに入力してください。<br>
+        <span style="opacity:.8">無料枠：1分15リクエスト・1日1500リクエスト</span>
+      </div>
+      <div class="api-key-row">
+        <input class="api-key-input" type="password" id="apiKeyInput" placeholder="AIzaSy..." autocomplete="off">
+        <button class="btn btn-ok btn-sm" onclick="saveApiKey()">保存</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearApiKey()">削除</button>
+      </div>
+      <div id="apiKeyStatus" style="font-size:12px;color:var(--gray)"></div>
+    </div>
+  </div>
+
+  <!-- Mode indicator -->
+  <div class="mode-row" id="modeRow" style="display:none">
+    <div class="mode-dot" id="modeDot"></div>
+    <span class="mode-text" id="modeText"></span>
+  </div>
+
+  <hr class="divider">
+  <div class="card-title">④ チェックするテキスト</div>
+  <div class="preset-row">
+    <span style="font-size:12px;color:var(--gray);margin-right:6px">ORYZAEサンプル：</span>
+    <button class="btn btn-ghost btn-sm" onclick="loadPreset('kojipop')">🍹 KOJIPOP</button>
+    <button class="btn btn-ghost btn-sm" onclick="loadPreset('sweet')">🍯 甘味料</button>
+    <button class="btn btn-ghost btn-sm" onclick="loadPreset('amazake')">🍶 あまざけ</button>
+  </div>
+  <textarea id="inputText" placeholder="チェックしたい広告コピー・商品説明文・SNSキャプションをここに貼り付けてください。&#10;&#10;例：米麹発酵の力で腸内環境を改善し、免疫力をアップ。肌荒れや便秘にお悩みの方に。血糖値が気になる方にもおすすめ。"></textarea>
+  <div class="char-count"><span id="charCount">0</span> 文字</div>
+  <button class="btn btn-primary" id="checkBtn" onclick="runCheck()">
+    <div class="spinner"></div>
+    <span class="btn-label" id="checkBtnLabel">🔍　薬機法チェックを実行</span>
+  </button>
+</div>
+
+<!-- ════ RESULTS ════ -->
+<div id="results" style="display:none">
+
+  <div id="scoreBanner" class="score-banner">
+    <div class="score-icon" id="scoreIcon"></div>
+    <div style="flex:1">
+      <div class="score-title" id="scoreTitle"></div>
+      <div class="score-sub" id="scoreSub"></div>
+      <div id="aiTag" style="margin-top:5px;display:none"><span class="ai-analyzed-tag">🤖 AI分析済み</span></div>
+      <div class="export-row no-print">
+        <button class="btn btn-ghost btn-sm" onclick="doPrint()">🖨 印刷・PDF保存</button>
+        <button class="btn btn-copy btn-sm" onclick="copyResults()">📋 結果をコピー</button>
+        <button class="btn btn-slack btn-sm" onclick="shareToSlack()">💬 Slackに共有</button>
+        <span class="copied-msg" id="copiedMsg">コピーしました ✓</span>
+        <span class="copied-msg" id="slackCopiedMsg">Slack用テキストをコピーしました ✓</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs no-print">
+    <div class="tab active" onclick="switchTab('check')">📋 チェック結果<span class="tab-count" id="tabCount" style="display:none"></span></div>
+    <div class="tab" onclick="switchTab('preview')">🖊 ハイライト</div>
+    <div class="tab" onclick="switchTab('fix')">✏️ 修正候補</div>
+    <div class="tab" onclick="switchTab('library')">📚 OK表現集</div>
+    <div class="tab" onclick="switchTab('tips')">💡 言い換え集</div>
+    <div class="tab" onclick="switchTab('history')">🕐 履歴</div>
+    <div class="tab" onclick="switchTab('learning')">🧠 AI学習</div>
+  </div>
+
+  <!-- Tab: チェック結果 -->
+  <div class="tab-content active" id="tab-check">
+    <div class="counter-row" id="counterRow"></div>
+    <div class="issue-list" id="issueList"></div>
+    <div id="safeExprsBox" style="display:none" class="safe-exprs">
+      <div class="safe-exprs-title">✅ 問題のない良い表現（AIが認識）</div>
+      <div id="safeExprs"></div>
+    </div>
+    <div id="strategicAdviceBox" style="display:none" class="strategic-advice-box">
+      <div class="strategic-advice-title">🎯 全体戦略アドバイス</div>
+      <div id="strategicAdviceText"></div>
+    </div>
+    <div id="channelAdviceBox" style="display:none" class="channel-advice-box">
+      <div class="channel-advice-title">📡 媒体固有アドバイス</div>
+      <div id="channelAdviceText"></div>
+    </div>
+    <div id="allOkMsg" style="display:none" class="empty-state">
+      <div class="emoji">🎉</div>
+      <p>問題のある表現は検出されませんでした。<br>引き続き最新ガイドラインの確認もおすすめします。</p>
+    </div>
+  </div>
+
+  <!-- Tab: ハイライト -->
+  <div class="tab-content" id="tab-preview">
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#fee2e2;border:2px solid var(--danger)"></div>高リスク</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fef3c7;border:2px solid #f59e0b"></div>中リスク</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#dbeafe;border:2px solid #3b82f6"></div>要注意</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f3e8ff;border:2px solid #9333ea"></div>景表法</div>
+    </div>
+    <div class="preview-box" id="previewBox"></div>
+  </div>
+
+  <!-- Tab: 修正候補 -->
+  <div class="tab-content" id="tab-fix">
+    <div class="fix-note" id="fixNote">💡 AI修正候補または自動置換した修正候補です。文脈に合わせて編集してからお使いください。</div>
+    <div class="fix-actions">
+      <button class="btn btn-ok btn-sm" onclick="applyAutoFix()">⚡ 自動修正を適用</button>
+      <button class="btn btn-ghost btn-sm" onclick="resetFixText()">↩ 元に戻す</button>
+      <button class="btn btn-copy btn-sm" onclick="copyFixText()">📋 修正文をコピー</button>
+      <span class="copied-msg" id="fixCopiedMsg">コピーしました ✓</span>
+    </div>
+    <textarea id="fixText" placeholder="チェックを実行すると修正候補が表示されます"></textarea>
+    <div id="fixIssueGuide" style="margin-top:12px"></div>
+  </div>
+
+  <!-- Tab: OK表現集 -->
+  <div class="tab-content" id="tab-library">
+    <p style="font-size:13px;color:var(--text-light);margin-bottom:11px">オリゼが使える・使いやすい表現のライブラリ。クリックでコピーできます。AI学習タブで独自表現を追加できます。</p>
+    <div class="lib-cats" id="libCats">
+      <button class="lib-cat-btn active" data-lib="all">すべて</button>
+      <button class="lib-cat-btn" data-lib="ferment">🍶 発酵・麹</button>
+      <button class="lib-cat-btn" data-lib="sweet">🌾 甘味料</button>
+      <button class="lib-cat-btn" data-lib="gut">🌿 腸活・食生活</button>
+      <button class="lib-cat-btn" data-lib="skin">✨ スキンケア</button>
+      <button class="lib-cat-btn" data-lib="brand">🌍 ブランド</button>
+      <button class="lib-cat-btn" data-lib="custom">⭐ 学習済み</button>
+    </div>
+    <div class="lib-grid" id="libGrid"></div>
+  </div>
+
+  <!-- Tab: 言い換え -->
+  <div class="tab-content" id="tab-tips">
+    <div class="tips-grid" id="tipsGrid"></div>
+  </div>
+
+  <!-- Tab: 履歴 -->
+  <div class="tab-content" id="tab-history">
+    <div id="histCount" class="hist-count"></div>
+    <div id="histList"></div>
+  </div>
+
+  <!-- Tab: AI学習 -->
+  <div class="tab-content" id="tab-learning">
+    <div class="learn-stats" id="learnStats"></div>
+
+    <div class="learn-section">
+      <div class="learn-section-title">📝 会社・製品コンテキスト（AIへの背景情報）</div>
+      <textarea class="context-textarea" id="contextNote" placeholder="会社・製品の特徴をAIに伝えるメモ。例：砂糖代替甘味料は米麹発酵由来で、機能性表示食品の届出は未取得。"></textarea>
+      <button class="btn btn-ok btn-sm" style="margin-top:7px" onclick="saveContextNote()">保存</button>
+    </div>
+
+    <div class="learn-section">
+      <div class="learn-section-title">✅ 承認済み表現（誤検知を防ぐ）</div>
+      <div id="approvedList"></div>
+      <div class="learn-add-row">
+        <input type="text" id="newApprovedInput" placeholder="例：アレルギーをお持ちの方はご注意ください">
+        <button class="btn btn-ok btn-sm" onclick="addApproved()">追加</button>
+      </div>
+    </div>
+
+    <div class="learn-section">
+      <div class="learn-section-title">🚫 誤検知パターン（AIが無視すべき表現）</div>
+      <p style="font-size:12px;color:var(--gray);margin-bottom:8px">チェック結果の「誤検知として登録」ボタンからも追加できます。</p>
+      <div id="fpList"></div>
+      <div class="learn-add-row">
+        <input type="text" id="newFpInput" placeholder="例：アレルギーをお持ちの方">
+        <button class="btn btn-ghost btn-sm" onclick="addFp()">追加</button>
+      </div>
+    </div>
+
+    <div class="learn-section">
+      <div class="learn-section-title">📊 学習データ管理</div>
+      <div class="learn-export-row">
+        <button class="btn btn-copy btn-sm" onclick="exportLearning()">📤 エクスポート（JSON）</button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importInput').click()">📥 インポート</button>
+        <input type="file" id="importInput" accept=".json" style="display:none" onchange="importLearning(event)">
+        <button class="btn btn-danger btn-sm" onclick="if(confirm('学習データをすべてリセットしますか？'))resetLearning()">🗑 リセット</button>
+      </div>
+      <p style="font-size:11px;color:var(--gray);margin-top:8px">学習データはこのブラウザのローカルストレージに保存されます。チームで共有するにはエクスポートして配布してください。</p>
+    </div>
+  </div>
+
+</div><!-- /results -->
+
+<div class="notice no-print">
+  <strong>⚠️ ご利用上の注意：</strong>本ツールは薬機法・景表法リスク表現の参考情報を提供するものです。最終的な広告表現の適法性については薬機法専門家・弁護士・消費者庁ガイドラインにてご確認ください。
+</div>
+
+</div><!-- /container -->
+
+<script>
+// ════════════════════════════════════════════════
+// STORAGE KEYS
+// ════════════════════════════════════════════════
+const KEY_SETTINGS = 'oryzae_settings';
+const KEY_HISTORY  = 'oryzae_history';
+const KEY_CONTEXT  = 'oryzae_context';
+const MAX_HISTORY  = 80;
+const GEMINI_URL   = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=';
+const DEFAULT_API_KEY = 'AIzaSyBL_oQJhoqpbQ6IrG_9iih9vMfh5WbzHlc'; // yakki-ho-checker (ORYZAE共通)
+
+// ════════════════════════════════════════════════
+// DEFAULT ORYZAE CONTEXT
+// ════════════════════════════════════════════════
+const DEFAULT_CONTEXT = {
+  companyNote: `株式会社オリゼ（ORYZAE）は米麹発酵由来甘味料「ORYZAE」と発酵食品ブランド「フードコスメORYZAE」を展開するスタートアップです。
+主要製品：砂糖代替甘味料（米麹発酵由来）、スキンケア製品。
+機能性表示食品の届出は原則未取得。医薬部外品の承認は個別に確認が必要。
+ミッション：「地球を発酵させる」`,
+  approvedExpressions: [
+    "砂糖の代わりに米麹発酵由来の自然な甘みを",
+    "発酵食品で毎日の食生活をサポート",
+    "米麹発酵技術を使用",
+    "伝統的な米麹発酵技術から生まれた",
+    "地球を発酵させる",
+    "フードコスメORYZAE",
+    "発酵の恵みで肌にうるおいを",
+  ],
+  falsePositivePatterns: [
+    "アレルギーをお持ちの方はご注意ください",
+    "食物アレルギーのある方は原材料をご確認ください",
+  ]
+};
+
+// ════════════════════════════════════════════════
+// RULE DATABASE（正規表現フォールバック用）
+// ════════════════════════════════════════════════
+const RULES = [
+  {id:"r01",cats:["food","cosmetic","quasi"],law:"yakki",patterns:[/糖尿病/g,/高血糖/g],risk:"high",phrase:"糖尿病・高血糖（疾病名）",reason:"特定疾病名の標榜は医薬品的効能効果の暗示にあたります。",kinousei_ok:false,media_notes:{sns:"#糖尿病予防 等のハッシュタグも同様に規制対象です。"},alts:["疾病名は使用不可","「血糖値が高めの方に」（機能性表示食品届出済みの場合のみ）","「毎日の食生活が気になる方へ」","「砂糖の代わりに米麹発酵由来の甘みを」"],autofix:"毎日の食生活が気になる方へ"},
+  {id:"r02",cats:["food","cosmetic","quasi"],law:"yakki",patterns:[/高血圧/g,/低血圧/g],risk:"high",phrase:"高血圧・低血圧（疾病名）",reason:"血圧関連の効能訴求はトクホ・機能性表示食品の届出が必要です。",kinousei_ok:false,alts:["「血圧が高めの方に」（機能性表示食品届出済みの場合のみ）","「毎日の生活習慣をサポート」"],autofix:"毎日の生活習慣をサポート"},
+  {id:"r03",cats:["food","cosmetic","quasi"],law:"yakki",patterns:[/がん|癌|ガン/g],risk:"high",phrase:"がん・癌（疾病名）",reason:"重篤疾患名の標榜は最も重大な薬機法違反リスクです。",kinousei_ok:false,alts:["絶対に使用不可","「体の健康維持をサポート」"],autofix:"体の健康維持をサポート"},
+  {id:"r04",cats:["food","cosmetic","quasi"],law:"yakki",patterns:[/アトピー/g,/アレルギー[をにが]?(治す|改善|予防|なくなる)/g],risk:"high",phrase:"アトピー・アレルギーの治療・改善",reason:"アレルギー疾患の治療・改善効果の標榜は使用不可。（注：「アレルギーをお持ちの方はご注意ください」は安全注意書きであり問題ありません）",kinousei_ok:false,alts:["「敏感肌向け低刺激処方」","「パッチテスト済み」"],autofix:"敏感肌向け低刺激処方"},
+  {id:"r05",cats:["food","cosmetic","quasi"],law:"yakki",patterns:[/花粉症/g],risk:"high",phrase:"花粉症（疾病名）",reason:"アレルギー性鼻炎を含む疾患名は使用不可。",kinousei_ok:false,alts:["「季節の変わり目が気になる方へ」"],autofix:"季節の変わり目が気になる方へ"},
+  {id:"r06",cats:["food","cosmetic","quasi"],law:"yakki",patterns:[/動脈硬化/g,/心筋梗塞/g,/脳卒中/g,/脳梗塞/g],risk:"high",phrase:"動脈硬化・心筋梗塞・脳卒中等",reason:"循環器系疾患名の標榜。絶対に使用不可。",kinousei_ok:false,alts:["「健康的な生活習慣をサポート」"],autofix:"健康的な生活習慣をサポート"},
+  {id:"r07",cats:["food","cosmetic"],law:"yakki",patterns:[/便秘[をにの]?(改善|解消|治す|解決)/g,/便秘症/g],risk:"high",phrase:"便秘の改善・解消",reason:"「便秘の改善」は医薬品・医薬部外品の効能。食品では原則使用不可。",kinousei_ok:false,alts:["「お腹の調子を整える」（機能性表示食品届出済みの場合）","「毎日のお通じケアに」"],autofix:"毎日のお通じケアに"},
+  {id:"r10",cats:["food","cosmetic","quasi"],law:"yakki",patterns:[/治[るっし]|治療|治癒|快癒/g],risk:"high",phrase:"治る・治療・治癒",reason:"医薬品にのみ認められる効能表現です。",kinousei_ok:false,alts:["「整える」「ケアする」「サポートする」"],autofix:"整える"},
+  {id:"r11",cats:["food","cosmetic","quasi"],law:"yakki",patterns:[/病気を?予防/g,/感染予防/g],risk:"high",phrase:"疾病・感染の予防",reason:"疾病予防効果の標榜は医薬品的効能効果にあたります。",kinousei_ok:false,alts:["「日々の健康維持のために」"],autofix:"日々の健康維持のために"},
+  {id:"r12",cats:["food","cosmetic"],law:"yakki",patterns:[/肌荒れ[をにが]?(改善|治す|解消)/g,/ニキビ[をにが]?(改善|治す|消える)/g],risk:"high",phrase:"肌荒れ・ニキビの改善",reason:"「肌荒れを改善」は医薬部外品の効能。化粧品では「防ぐ」のみ可。",kinousei_ok:false,alts:["「肌を整える」「すこやかな肌を保つ」","医薬部外品承認済みなら「肌荒れを防ぐ」"],autofix:"肌を整える"},
+  {id:"r13",cats:["food","cosmetic"],law:"yakki",patterns:[/シミ[をにが]?(消える|消す|除去|改善)/g],risk:"high",phrase:"シミを消す・除去",reason:"「シミを消す」は医薬品的効能。化粧品・医薬部外品では「日焼けによるシミ・そばかすを防ぐ」のみ可。",kinousei_ok:false,alts:["「透明感のある肌印象に」","医薬部外品（美白）なら「日焼けによるシミ・そばかすを防ぐ」"],autofix:"透明感のある肌印象に"},
+  {id:"r20",cats:["food","cosmetic","quasi"],law:"yakki",patterns:[/免疫力[をにが]?(上げる|アップ|高める|強化|向上)/g,/免疫力アップ/g],risk:"high",phrase:"免疫力アップ・免疫力を高める",reason:"「免疫力向上」は医薬品的効能効果に該当。消費者庁も繰り返し問題視。",kinousei_ok:false,media_notes:{sns:"#免疫力アップ 等のハッシュタグも規制対象です。"},alts:["「日々の健康習慣をサポート」","「発酵食品で毎日の食生活をサポート」（ORYZAE向け）"],autofix:"日々の健康習慣をサポート"},
+  {id:"r21",cats:["food","cosmetic","quasi"],law:"yakki",patterns:[/デトックス/g,/毒素[をに]?(排出|除去)/g],risk:"high",phrase:"デトックス・毒素排出",reason:"科学的根拠が不明確で医薬品的効能効果の暗示にもあたります。",kinousei_ok:false,alts:["「すっきりとした毎日のために」","「腸内環境を整える」"],autofix:"すっきりとした毎日のために"},
+  {id:"r22",cats:["food","cosmetic","quasi"],law:"yakki",patterns:[/細胞[をにが]?(活性化|若返|再生)/g],risk:"high",phrase:"細胞の活性化・再生",reason:"「細胞を活性化」は医薬品的効能効果。化粧品での使用は特に厳禁。",kinousei_ok:false,alts:["「肌のハリ・弾力をサポート」"],autofix:"肌のハリ・弾力をサポート"},
+  {id:"r23",cats:["food","cosmetic","quasi"],law:"yakki",patterns:[/活性酸素[をにが]?(除去|消去|除く)/g],risk:"mid",phrase:"活性酸素の除去",reason:"医薬品的効能効果の暗示。成分名で訴求するのが適切。",kinousei_ok:false,alts:["「抗酸化成分（ポリフェノール等）配合」","「米麹発酵由来ポリフェノール配合」"],autofix:"抗酸化成分配合"},
+  {id:"r24",cats:["food","cosmetic","quasi"],law:"yakki",patterns:[/体質改善/g],risk:"high",phrase:"体質改善",reason:"消費者庁も問題視している医薬品的効能効果表現です。",kinousei_ok:false,alts:["「毎日の食習慣をサポート」","「継続的な健康維持のために」"],autofix:"毎日の食習慣をサポート"},
+  {id:"r25",cats:["food"],law:"yakki",patterns:[/血糖値[をにが]?(下げる|低下|コントロール|抑える)/g],risk:"high",phrase:"血糖値を下げる・コントロール",reason:"血糖値への効果は機能性表示食品・トクホの届出なしには訴求不可。",kinousei_ok:true,kinousei_alt:"機能性表示食品届出済みなら「食後の血糖値の上昇を穏やかにする」",alts:["届出済みの場合：「食後の血糖値の上昇を穏やかにする」","「砂糖の代わりに米麹発酵由来の自然な甘みを」"],autofix:"砂糖の代わりに米麹発酵由来の自然な甘みを"},
+  {id:"r26",cats:["food"],law:"yakki",patterns:[/コレステロール[をにが]?(下げる|低下|減らす)/g,/中性脂肪[をにが]?(下げる|低下|減らす)/g],risk:"high",phrase:"コレステロール・中性脂肪を下げる",reason:"トクホ・機能性表示食品の届出なしには不可。",kinousei_ok:true,kinousei_alt:"機能性表示食品届出済みなら可",alts:["「バランスの良い食生活のお供に」"],autofix:"バランスの良い食生活のお供に"},
+  {id:"r27",cats:["food","cosmetic"],law:"yakki",patterns:[/痩せ[るた]|脂肪燃焼|ダイエット効果/g],risk:"high",phrase:"痩せる・脂肪燃焼・ダイエット効果",reason:"痩身効果の標榜は薬機法・景表法双方でリスクが高い。",kinousei_ok:true,kinousei_alt:"体脂肪に関する機能性表示届出済みの場合のみ可",alts:["「スッキリとした毎日をサポート」","「カロリー〇〇kcal（事実の記載）」"],autofix:"スッキリとした毎日をサポート"},
+  {id:"r28",cats:["cosmetic"],law:"yakki",patterns:[/ビフォーアフター|使用前.*使用後/gi],risk:"mid",phrase:"ビフォーアフター（化粧品）",reason:"化粧品のビフォーアフターは効能効果の標榜・優良誤認のリスク大。",kinousei_ok:false,media_notes:{sns:"SNS・Instagramでも同様。インフルエンサー依頼時も注意。"},alts:["「イメージ写真」等の注記を必ず追加","体験談には「個人の感想であり、効果・効能を示すものではありません」を付記"],autofix:null},
+  {id:"r29",cats:["food","cosmetic","quasi"],law:"yakki",patterns:[/ホルモンバランス[をにが]?(整える|改善|調整)/g],risk:"mid",phrase:"ホルモンバランスを整える",reason:"内分泌系への作用を示唆し医薬品的効能効果の暗示にあたる可能性があります。",kinousei_ok:false,alts:["「毎日のコンディション維持に」"],autofix:"毎日のコンディション維持に"},
+  {id:"r30",cats:["food","cosmetic","quasi"],law:"yakki",patterns:[/奇跡[のをに]/g,/魔法[のをに]/g],risk:"mid",phrase:"奇跡・魔法などの誇大表現",reason:"著しく優良であると誤認させる景表法上の誇大広告リスク。",kinousei_ok:false,alts:["「伝統的な発酵技術から生まれた」（ORYZAE向け）"],autofix:"伝統的な発酵技術から生まれた"},
+  {id:"r40",cats:["food"],law:"yakki",patterns:[/腸内環境[をにが]?(改善|治す|正常化)/g],risk:"mid",phrase:"腸内環境を改善（食品）",reason:"「改善」は機能性表示食品届出なしにはリスク。「整える」は届出済みで認められています。",kinousei_ok:true,kinousei_alt:"機能性表示食品届出済みなら「腸内環境を整える」OK（「改善」→「整える」）",alts:["「腸内環境を整える」（届出済みの場合）","「発酵食品で毎日の腸活をサポート」"],autofix:"腸内環境を整える"},
+  {id:"r41",cats:["food","cosmetic"],law:"yakki",patterns:[/発酵[のをにが]?力で?(体|肌)[をにが]?(若返|再生|蘇る)/g],risk:"high",phrase:"発酵の力で体・肌を若返らせる",reason:"「若返り」「再生」は医薬品的効能効果の暗示。発酵製品でも使用不可。",kinousei_ok:false,alts:["「発酵の恵みで肌にうるおいを」","「米麹発酵の力で、すこやかな肌ケアを」"],autofix:"発酵の恵みで肌にうるおいを"},
+  {id:"r42",cats:["food"],law:"yakki",patterns:[/砂糖より[も]?健康的/g,/砂糖は[体に]?悪い/g],risk:"mid",phrase:"砂糖との不当比較・砂糖の誹謗",reason:"競合製品の誹謗中傷は不正競争防止法・景表法上のリスクがあります。",kinousei_ok:false,alts:["「砂糖の代わりに米麹発酵由来の自然な甘みを」"],autofix:"砂糖の代わりに米麹発酵由来の自然な甘みを"},
+  {id:"r50",cats:["cosmetic"],law:"yakki",patterns:[/毛穴[をにが]?(消える|消す|なくなる)/g],risk:"mid",phrase:"毛穴を消す（化粧品）",reason:"「毛穴を消す」は医薬品的効能効果の暗示。「目立たなくする」程度が限界。",kinousei_ok:false,alts:["「毛穴の目立ちにくい肌へ」"],autofix:"毛穴の目立ちにくい肌へ"},
+  {id:"r51",cats:["cosmetic"],law:"yakki",patterns:[/たるみ[をにが]?(改善|治す|なくす)/g,/リフトアップ効果/g],risk:"mid",phrase:"たるみの改善・リフトアップ効果",reason:"「たるみを改善」は医薬品的効能効果。",kinousei_ok:false,alts:["「ハリ・弾力のある肌へ」"],autofix:"ハリ・弾力のある肌へ"},
+  {id:"r52",cats:["cosmetic"],law:"yakki",patterns:[/コラーゲン[をにが]?(増やす|生成|産生)/g],risk:"mid",phrase:"コラーゲンを増やす・生成（化粧品）",reason:"「コラーゲン生成を促進」は化粧品の効能範囲を超えます。",kinousei_ok:false,alts:["「コラーゲン配合でハリのある肌へ」"],autofix:"コラーゲン配合でハリのある肌へ"},
+  // 景表法
+  {id:"k01",cats:["food","cosmetic","quasi"],law:"keihyo",patterns:[/(?:業界|売上|口コミ|満足度)[^\s]{0,5}No\.?1/gi,/ナンバーワン|ナンバー1/g],risk:"mid",phrase:"No.1表示（景表法）",reason:"「No.1」表示には客観的な根拠（調査機関・方法・対象・時期）の明示が必要です。",kinousei_ok:false,alts:["根拠がある場合：「〇〇調査（N=△△、××年）でNo.1」と詳細を明示"],autofix:null},
+  {id:"k02",cats:["food","cosmetic","quasi"],law:"keihyo",patterns:[/全額返金|返金保証/g],risk:"low",phrase:"返金保証（景表法）",reason:"条件・期間・手続きを明確に記載しないと景表法の不当表示になります。",kinousei_ok:false,alts:["「ご購入から〇日以内、〇〇の条件でご返金」と条件を必ず明記"],autofix:null},
+  {id:"k03",cats:["food","cosmetic","quasi"],law:"keihyo",patterns:[/科学的に証明|研究で証明|実証済み/g],risk:"mid",phrase:"「科学的に証明」等の断定（景表法）",reason:"根拠となる論文・試験の具体的な情報なしには優良誤認にあたります。",kinousei_ok:false,alts:["「〇〇大学との共同研究（〇年）より」と具体的に明示"],autofix:null},
+  {id:"k04",cats:["food","cosmetic","quasi"],law:"keihyo",patterns:[/医師が推薦|医師が認めた|医学的に証明/g],risk:"mid",phrase:"医師推薦・医学的証明（景表法）",reason:"根拠のない医師推薦・医学的証明は景表法の不当表示になります。",kinousei_ok:false,alts:["実際の推薦がある場合：「〇〇先生推薦（専門：△△）」として明示"],autofix:null},
+];
+
+// ════════════════════════════════════════════════
+// ESCALATION RULES（文脈依存・段階昇格ルール）
+// ════════════════════════════════════════════════
+const ESCALATION_RULES = [
+  { pattern: /腸活/g, id: "ctx_chokatsu", base_risk: "mid",
+    reason: "「腸活」自体は一般的な健康志向ワードだが、前後の文脈で具体的な身体作用と結びつくと高リスクに昇格。",
+    escalation_patterns: [/(?:腸活で?(?:.*?)(?:改善|整|解消|効果))/g, /(?:(?:改善|整える|スッキリ|快調)(?:.*?)腸活)/g],
+    escalation_reason: "「腸活」が具体的な身体効果と結びついており、実質的に腸内環境改善の効能を標榜。🔴高リスクに昇格。",
+    phrase:"腸活（文脈依存）", alts:["「毎日のお通じケアに発酵食品を」","「腸内フローラを整えたい方の食生活をサポート」"] },
+  { pattern: /菌活/g, id: "ctx_kinkatsu", base_risk: "mid",
+    reason: "「菌活」は一般的なワードだが、具体的な効果と結びつけると薬機法上の問題が生じる。",
+    escalation_patterns: [/(?:菌活で?(?:.*?)(?:免疫|改善|整|健康に))/g],
+    escalation_reason: "「菌活」が具体的な身体効果と結びついており、🔴高リスクに昇格。",
+    phrase:"菌活（文脈依存）", alts:["「発酵食品で毎日の食生活をサポート」"] },
+  { pattern: /リカバリー/g, id: "ctx_recovery", base_risk: "mid",
+    reason: "「リカバリー」はライフスタイル表現としてはOK寄りだが、疲労回復と直結させると高リスク。",
+    escalation_patterns: [/(?:リカバリー(?:.*?)(?:疲労|回復|体力|身体|筋肉))/g, /(?:(?:疲労|疲れ|回復)(?:.*?)リカバリー)/g],
+    escalation_reason: "「リカバリー」が身体的な回復効果と結びついており、疲労回復の効能標榜に該当。🔴高リスクに昇格。",
+    phrase:"リカバリー（文脈依存）", alts:["「毎日のコンディション維持に」","「気分のリフレッシュに」"] },
+  { pattern: /スーパーフード/g, id: "ctx_superfood", base_risk: "low",
+    reason: "「スーパーフード」自体はカテゴリ呼称として概ねOKだが、後に続く文脈で効能を暗示すると問題。",
+    escalation_patterns: [/(?:スーパーフード(?:.*?)(?:効果|効能|治|予防|改善|免疫))/g],
+    escalation_reason: "「スーパーフード」が具体的な効能と結びついており、中リスク以上に昇格。",
+    phrase:"スーパーフード（文脈依存）", alts:["「スーパーフード（効能訴求なし）」"] },
+  { pattern: /(?:体|身体|カラダ)の中から(?:キレイに|美しく|スッキリ|浄化)/g, id: "ctx_inner_beauty", base_risk: "mid",
+    reason: "「体の中からキレイに」は身体への作用を暗示するグレーゾーン。食品の場合は気分・ライフスタイルの文脈で使うのが安全。",
+    escalation_patterns: [/(?:体の中から(?:.*?)(?:デトックス|毒素|浄化|改善))/g],
+    escalation_reason: "身体浄化・デトックスと結びついており、🔴高リスクに昇格。",
+    phrase:"体の中からキレイに（文脈依存）", alts:["「毎日の食生活をサポート」"] },
+  { pattern: /個人の感想です|効果には?個人差/g, id: "ctx_disclaimer", base_risk: "low",
+    reason: "「個人の感想です」免責は、本文が薬機法に違反している場合は免責として機能しない。むしろ効能標榜を意図的に行った証拠になりうる。",
+    escalation_patterns: [],
+    escalation_reason: "",
+    phrase:"「個人の感想です」免責（要注意）", alts:["免責表記は効能表現の後付けには使えません。本文から効能訴求を削除してください。"] },
+];
+
+// ════════════════════════════════════════════════
+// CHANNEL-SPECIFIC RULES（媒体別ルール）
+// ════════════════════════════════════════════════
+const CHANNEL_SPECIFIC_RULES = {
+  amazon: [
+    { pattern: /(?:#1|ベストセラー|(?:Amazon|アマゾン)?ランキング1位)/gi, id:"amz_rank", risk:"high", phrase:"Amazon #1・ベストセラー表記",
+      reason:"Amazon公式バッジ以外での「#1」「ベストセラー」表記はガイドライン違反。リスティング削除リスクあり。",
+      alts:["「Amazon公式バッジ取得時のみ使用可」"] },
+    { pattern: /(?:★5|レビュー(?:お願い|ください|書いて))/g, id:"amz_review", risk:"high", phrase:"Amazonレビュー誘導",
+      reason:"レビュー誘導はAmazonコミュニティガイドライン違反。アカウント停止リスクあり。",
+      alts:["「レビュー依頼は絶対に行わないこと」"] },
+  ],
+  rakuten: [
+    { pattern: /(?:ランキング(?:1位|受賞|No\.?\s?1))/gi, id:"rkt_rank", risk:"mid", phrase:"楽天ランキング表記",
+      reason:"楽天ランキング表記は受賞実績＋取得日の明記が必要。不備は違反点数の対象。",
+      alts:["「〇〇部門1位（受賞：YYYY年MM月DD日）」と詳細を明記"] },
+    { pattern: /(?:最安値|(?:他店|どこ)より安い|価格保証)/g, id:"rkt_price", risk:"high", phrase:"楽天 最安値・価格保証表記",
+      reason:"最安値表記は根拠がない場合、景品表示法の有利誤認かつ楽天ガイドライン違反。",
+      alts:["「価格保証の表記には根拠調査と日付明記が必要」"] },
+  ],
+  tiktok: [
+    { pattern: /個人の感想です/g, id:"tt_disclaimer", risk:"mid", phrase:"TikTok 個人感想免責のみ",
+      reason:"TikTokでは「個人の感想です」免責だけでは不十分。動画内の口頭表現・テロップも含め全体で判断される。",
+      alts:["効能表現そのものを削除し、ライフスタイル文脈で表現する"] },
+  ],
+  sns: [
+    { pattern: /(?:(?:ビフォー|before)\s*(?:アフター|after)|(?:使用前|before)(?:.*?)(?:使用後|after))/gi, id:"sns_ba", risk:"high", phrase:"SNS ビフォーアフター",
+      reason:"ビフォーアフター画像は景品表示法上の優良誤認リスクが非常に高い。SNS広告では特に問題視される。",
+      alts:["「イメージ写真」等の注記を必ず追加","「個人の感想であり、効果・効能を示すものではありません」を付記"] },
+    { pattern: /(?:#(?:ダイエット|痩せ|美白|シミ消し|免疫力アップ|腸内環境改善))/g, id:"sns_hashtag", risk:"mid", phrase:"SNS 効能示唆ハッシュタグ",
+      reason:"ハッシュタグも広告表現の一部。効能を暗示するタグは薬機法の対象。",
+      alts:["「#毎日のお気に入り」「#発酵食品」「#麹生活」等のライフスタイル系タグに変更"] },
+  ],
+  package: [
+    { pattern: /(?:(?:改善|予防|治療|回復)(?:.*?)(?:お試し|まず|今すぐ))/g, id:"pkg_cta_medical", risk:"high", phrase:"パッケージ 効能+行動喚起の組み合わせ",
+      reason:"パッケージ上で効能＋行動喚起の組み合わせは、医薬品的な用法指示と受け取られるリスクが高い。",
+      alts:["効能表現なしに行動喚起のみに変更する"] },
+    { pattern: /(?:栄養機能食品|機能性表示食品|特定保健用食品)/g, id:"pkg_category_claim", risk:"mid", phrase:"パッケージ カテゴリ表示",
+      reason:"パッケージ上のカテゴリ表示は、実際の届出・許可を取得していない場合は食品表示法違反。届出番号の記載も必要。",
+      alts:["届出番号を必ず併記する"] },
+  ],
+  flyer: [
+    { pattern: /(?:(?:ビフォー|before)\s*(?:アフター|after)|(?:使用前|before)(?:.*?)(?:使用後|after))/gi, id:"fly_ba", risk:"high", phrase:"チラシ ビフォーアフター",
+      reason:"チラシでのビフォーアフター表現は景品表示法上の優良誤認リスクが非常に高い。配布範囲が広く行政の目に留まりやすい。",
+      alts:["「イメージ写真」注記を必ず追加"] },
+    { pattern: /個人の感想です/g, id:"fly_disclaimer", risk:"mid", phrase:"チラシ 個人感想免責のみ",
+      reason:"チラシは「広告」として薬機法が直接適用される。「個人の感想です」免責は効能標榜の免責にはならない。",
+      alts:["本文から効能訴求を削除してください"] },
+  ],
+  pop: [
+    { pattern: /(?:効く|効果|改善|治す|予防)/g, id:"pop_efficacy", risk:"high", phrase:"POP 効能表現",
+      reason:"店頭POPは口頭説明の補足として使われがちだが、それ自体が独立した広告表現として薬機法の対象。短い文言でも効能表現は違反。",
+      alts:["「おいしい」「毎日の習慣に」等の食経験・ライフスタイル表現に置き換える"] },
+  ],
+  catalog: [
+    { pattern: /個人の感想です/g, id:"cat_disclaimer", risk:"mid", phrase:"カタログ 個人感想免責のみ",
+      reason:"カタログは卸先・バイヤー向けでも消費者の手に渡る前提でチェックが必要。免責表示は効能標榜の免責にならない。",
+      alts:["本文から効能訴求を削除してください"] },
+  ],
+  press: [
+    { pattern: /(?:臨床試験|エビデンス|科学的に?(?:証明|実証)|研究(?:により|で|結果))/g, id:"pr_evidence", risk:"mid", phrase:"プレスリリース 研究エビデンス表現",
+      reason:"プレスリリースでの研究・エビデンス言及は、メディアが「科学的に効果が証明」と転載するリスクあり。",
+      alts:["「〇〇大学との共同研究（〇年）において、〇〇成分に〇〇の作用が確認された」と研究対象・範囲を正確に明記"] },
+  ],
+  general: [],
+  shopify: [],
+  lp: [],
+};
+
+// ════════════════════════════════════════════════
+// CHANNEL RULES TEXT（AIプロンプト用）
+// ════════════════════════════════════════════════
+const CHANNEL_RULES_TEXT = {
+  general: "",
+  lp: "LP（ランディングページ）は行政の直接監視対象。長文コピーでは効能の積み上げによる全体印象にも注意。Google広告審査も通る表現を意識する。",
+  amazon: "Amazonでは「#1」「ベストセラー」は公式バッジ以外で使用禁止。サプリカテゴリでは「治療」「治す」「予防」を含むリスティングを自動検知・削除する傾向。A+コンテンツ内画像テキストも審査対象。レビュー誘導はアカウント停止リスクあり。",
+  rakuten: "楽天は薬機法違反に違反点数制度でペナルティ（累積で出店停止）。ランキング表記は受賞実績+取得日の明記必須。GOLDページ含め全ページが対象。サムネイル画像内テキストも審査対象。",
+  shopify: "自社D2Cサイトは行政の直接監視対象（モールのフィルターなし）。LP型長文コピーは特に注意。Google広告審査も通る表現を意識。定期購入の解約条件表示（特商法）も確認。",
+  tiktok: "動画内の音声・テロップも薬機法の対象。インフルエンサー体験談が効能標榜になっていないか注意。「個人の感想です」免責だけでは不十分。UGC風広告でも広告主責任。ライブコマース中の口頭表現も対象。",
+  sns: "Meta広告ポリシー+薬機法の二重チェック。ビフォーアフター画像は優良誤認リスク極高。ハッシュタグも広告表現の一部。ステマ規制（2023年10月〜）でPR/広告表記の明示が必須。",
+  package: "パッケージは一度印刷すると差し替えコストが高いため、最も慎重なチェックが必要。食品表示法に基づく栄養成分表示・原材料表示の義務あり。表示スペースが限られるため短い表現に効能が凝縮されやすく、一語一語がリスク対象。裏面の説明文も広告表現として薬機法の対象。",
+  flyer: "チラシ・リーフレットは「広告」として薬機法が直接適用される。不特定多数に配布されるため行政の監視対象になりやすい。体験談・ビフォーアフター・「個人の感想です」免責の組み合わせは特にリスクが高い。配布済みのチラシは回収が困難なため、事前チェックの重要性がオンライン媒体より高い。",
+  pop: "店頭POPは短文でも独立した広告表現として薬機法の対象。販売員の口頭説明と組み合わさることで効能の暗示が強化されるリスクがある。「◯◯に効く」等の表現はPOP単体でNG。手書きPOPも対象。",
+  catalog: "カタログ・パンフレットは卸先・バイヤー向けでも、最終的に消費者の手に渡る可能性を前提にチェックが必要。展示会配布資料も同様。B2B資料であっても効能表現は薬機法の対象。",
+  press: "プレスリリースは、メディアが記事化する際に文脈が変わるリスクがある。記者が効能表現をそのまま引用・見出し化する可能性を想定し、誤解を生まない表現にする。「◯◯に効果」ではなく「◯◯成分を含む」等の事実記述に留める。",
+};
+
+// ════════════════════════════════════════════════
+// ORYZAE PRESETS
+// ════════════════════════════════════════════════
+const ORYZAE_PRESETS = {
+  kojipop: "米麹発酵由来の天然成分が腸内フローラを整え、免疫力アップ。毎日の疲労回復に最適な発酵リカバリーソーダ。砂糖不使用、果糖フリー。麹の力で体の中からデトックス。飲むだけで代謝が上がる新感覚ドリンク。",
+  sweet: "血糖値の上昇を抑え、糖尿病予防にも。砂糖の代わりにこれ一本で健康な食生活を。腸活に最適な発酵甘味料。善玉菌を増やし、便秘解消・美肌効果も期待できます。",
+  amazake: "飲む点滴と呼ばれるあまざけ。疲労回復・美容・アンチエイジングに効果的なスーパーフード。古来より日本人に親しまれてきた米麹の発酵食品。"
+};
+function loadPreset(key){
+  document.getElementById("inputText").value = ORYZAE_PRESETS[key]||"";
+  document.getElementById("charCount").textContent = (ORYZAE_PRESETS[key]||"").length;
+}
+
+// ════════════════════════════════════════════════
+// AUTO-FIX MAP
+// ════════════════════════════════════════════════
+const AUTO_FIX_MAP = [
+  {from:/免疫力[をにが]?(上げる|アップ|高める|強化|向上)/g,to:"日々の健康習慣をサポート"},
+  {from:/免疫力アップ/g,to:"日々の健康習慣をサポート"},
+  {from:/デトックス/g,to:"すっきりとした毎日のために"},
+  {from:/毒素[をに]?(排出|除去)/g,to:"腸内環境を整える"},
+  {from:/体質改善/g,to:"毎日の食習慣をサポート"},
+  {from:/腸内環境[をにが]?(改善|治す|正常化)/g,to:"腸内環境を整える"},
+  {from:/細胞[をにが]?(活性化|若返|再生)/g,to:"肌のハリ・弾力をサポート"},
+  {from:/活性酸素[をにが]?(除去|消去|除く)/g,to:"抗酸化成分配合"},
+  {from:/血糖値[をにが]?(下げる|低下|コントロール|抑える)/g,to:"砂糖の代わりに米麹発酵由来の自然な甘みを"},
+  {from:/痩せ[るた]/g,to:"すっきりとした毎日をサポート"},
+  {from:/脂肪燃焼|ダイエット効果/g,to:"カロリーを意識した食生活のサポートに"},
+  {from:/奇跡[のをに]/g,to:"伝統的な発酵技術から生まれた"},
+  {from:/魔法[のをに]/g,to:"発酵の知恵から生まれた"},
+  {from:/肌荒れ[をにが]?(改善|治す|解消)/g,to:"肌を整える"},
+  {from:/シミ[をにが]?(消える|消す|除去|改善)/g,to:"透明感のある肌印象に"},
+  {from:/毛穴[をにが]?(消える|消す|なくなる)/g,to:"毛穴の目立ちにくい肌へ"},
+  {from:/コラーゲン[をにが]?(増やす|生成|産生)/g,to:"コラーゲン配合でハリのある肌へ"},
+  {from:/たるみ[をにが]?(改善|治す|なくす)/g,to:"ハリ・弾力のある肌へ"},
+  {from:/リフトアップ効果/g,to:"肌のハリをサポート"},
+  {from:/ホルモンバランス[をにが]?(整える|改善|調整)/g,to:"毎日のコンディション維持に"},
+  {from:/砂糖より[も]?健康的/g,to:"砂糖の代わりに米麹発酵由来の自然な甘みを"},
+  {from:/発酵[のをにが]?力で?(体|肌)[をにが]?(若返|再生|蘇る)/g,to:"発酵の恵みで肌にうるおいを"},
+  {from:/便秘[をにの]?(改善|解消|治す)/g,to:"毎日のお通じケアに"},
+  {from:/花粉症/g,to:"季節の変わり目が気になる方へ"},
+];
+
+// ════════════════════════════════════════════════
+// OK LIBRARY
+// ════════════════════════════════════════════════
+const OK_LIBRARY_BASE = [
+  {cat:"ferment",text:"米麹発酵由来の自然な甘みをお届けします",tag:"甘味料"},
+  {cat:"ferment",text:"伝統的な米麹発酵技術から生まれた",tag:"製法"},
+  {cat:"ferment",text:"発酵の恵みをそのままに",tag:"製法"},
+  {cat:"ferment",text:"日本古来の麹文化を現代に",tag:"文化"},
+  {cat:"ferment",text:"米麹の酵素の力をいかした製法",tag:"製法"},
+  {cat:"ferment",text:"発酵食品で毎日の食生活をサポート",tag:"食生活"},
+  {cat:"ferment",text:"麹がつくり出す豊かな風味と甘み",tag:"風味"},
+  {cat:"ferment",text:"Koji（麹）から生まれた自然な美味しさ",tag:"グローバル"},
+  {cat:"sweet",text:"砂糖の代わりに使える米麹発酵由来の甘味料",tag:"代替"},
+  {cat:"sweet",text:"砂糖不使用（米麹発酵甘味料使用）",tag:"砂糖フリー"},
+  {cat:"sweet",text:"精製糖不使用の自然な甘み",tag:"砂糖フリー"},
+  {cat:"sweet",text:"カロリーを抑えた甘みのために米麹発酵を採用",tag:"カロリー"},
+  {cat:"sweet",text:"GI値が低い素材を使用した甘味料",tag:"低GI"},
+  {cat:"gut",text:"毎日の腸活に発酵食品を",tag:"腸活"},
+  {cat:"gut",text:"腸内環境を整えたい方の食生活をサポート",tag:"腸活"},
+  {cat:"gut",text:"毎日の食生活に発酵の力をプラス",tag:"食生活"},
+  {cat:"gut",text:"毎日のお通じケアに",tag:"腸活"},
+  {cat:"gut",text:"発酵食品で内側から健やかに",tag:"健康"},
+  {cat:"skin",text:"肌にうるおいを与える米麹エキス配合",tag:"成分"},
+  {cat:"skin",text:"すこやかな肌を保つための発酵美容成分",tag:"成分"},
+  {cat:"skin",text:"肌を整え、なめらかな肌印象へ",tag:"肌質"},
+  {cat:"skin",text:"米麹発酵エキスでハリのある肌へ",tag:"ハリ"},
+  {cat:"skin",text:"低刺激処方でデリケートな肌にも",tag:"敏感肌"},
+  {cat:"skin",text:"エイジングケア（年齢に応じたケア）に",tag:"エイジング"},
+  {cat:"brand",text:"地球を発酵させる",tag:"ミッション"},
+  {cat:"brand",text:"日本の伝統発酵技術を現代へ",tag:"ビジョン"},
+  {cat:"brand",text:"Kojiをグローバルスタンダードに",tag:"ビジョン"},
+  {cat:"brand",text:"農と発酵でつながる、生産者と消費者の架け橋",tag:"理念"},
+  {cat:"brand",text:"フードコスメORYZAE――食と美の境界を溶かす",tag:"ブランド"},
+];
+
+const TIPS_DATA = [
+  {ng:"免疫力アップ",ok:"日々の健康習慣をサポート"},
+  {ng:"体質改善",ok:"毎日の食習慣をサポート"},
+  {ng:"デトックス",ok:"すっきりとした毎日のために"},
+  {ng:"腸内環境を改善する",ok:"腸内環境を整える（機能性表示食品届出済みの場合）"},
+  {ng:"便秘の解消",ok:"毎日のお通じケアに"},
+  {ng:"肌荒れを治す",ok:"肌を整える / 肌荒れを防ぐ（医薬部外品）"},
+  {ng:"シミを消す",ok:"日焼けによるシミ・そばかすを防ぐ（美白医薬部外品）"},
+  {ng:"細胞を活性化",ok:"肌のハリ・弾力をサポート"},
+  {ng:"血糖値を下げる",ok:"砂糖の代わりに米麹発酵由来の甘みを"},
+  {ng:"痩せる・脂肪燃焼",ok:"スッキリした毎日をサポート"},
+  {ng:"コラーゲンを増やす",ok:"コラーゲン配合 / ハリのある肌へ"},
+  {ng:"業界No.1",ok:"「〇〇調査（N=△△、××年）でNo.1」と明示"},
+  {ng:"発酵で体質改善",ok:"発酵食品で毎日の食生活をサポート"},
+  {ng:"砂糖より健康的",ok:"砂糖の代わりに米麹発酵由来の自然な甘みを"},
+];
+
+// ════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════
+let selectedCats = new Set(["food","cosmetic"]);
+let selectedMed = "general";
+let currentIssues = [];
+let originalText = "";
+let lastCheckWasAI = false;
+
+// ════════════════════════════════════════════════
+// STORAGE HELPERS
+// ════════════════════════════════════════════════
+function loadSettings(){  try{return JSON.parse(localStorage.getItem(KEY_SETTINGS))||{}}catch(e){return{}} }
+function saveSettings(s){ localStorage.setItem(KEY_SETTINGS,JSON.stringify(s)) }
+function loadHistory(){   try{return JSON.parse(localStorage.getItem(KEY_HISTORY))||[]}catch(e){return[]} }
+function saveHistory(h){  localStorage.setItem(KEY_HISTORY,JSON.stringify(h)) }
+function loadContext(){
+  try{
+    const c = JSON.parse(localStorage.getItem(KEY_CONTEXT));
+    return c ? {...DEFAULT_CONTEXT,...c} : {...DEFAULT_CONTEXT};
+  }catch(e){return {...DEFAULT_CONTEXT}}
+}
+function saveContext(c){ localStorage.setItem(KEY_CONTEXT,JSON.stringify(c)) }
+
+// ════════════════════════════════════════════════
+// API KEY MANAGEMENT
+// ════════════════════════════════════════════════
+function saveApiKey(){
+  const key = document.getElementById("apiKeyInput").value.trim();
+  if(!key){alert("APIキーを入力してください。");return}
+  const s = loadSettings(); s.geminiApiKey = key; saveSettings(s);
+  updateModeUI();
+  document.getElementById("apiKeyStatus").textContent = "✓ 保存しました";
+  setTimeout(()=>document.getElementById("apiKeyStatus").textContent="",2000);
+}
+function clearApiKey(){
+  const s = loadSettings(); delete s.geminiApiKey; saveSettings(s);
+  document.getElementById("apiKeyInput").value = "";
+  document.getElementById("apiKeyStatus").textContent = "";
+  updateModeUI();
+}
+function getApiKey(){ return (loadSettings().geminiApiKey||"").trim() || DEFAULT_API_KEY }
+
+function updateModeUI(){
+  const hasKey = !!getApiKey();
+  const badge = document.getElementById("aiStatusBadge");
+  const headerBadge = document.getElementById("headerModeBadge");
+  const modeRow = document.getElementById("modeRow");
+  const modeDot = document.getElementById("modeDot");
+  const modeText = document.getElementById("modeText");
+  const checkBtn = document.getElementById("checkBtn");
+  const checkBtnLabel = document.getElementById("checkBtnLabel");
+
+  badge.textContent = hasKey ? "✓ AI有効" : "未設定";
+  badge.className = "ai-status " + (hasKey ? "active":"inactive");
+  headerBadge.textContent = hasKey ? "🤖 AIモード" : "正規表現モード";
+  headerBadge.className = hasKey ? "ai-mode-badge" : "regex-mode-badge";
+  modeRow.style.display = "flex";
+  modeRow.className = "mode-row " + (hasKey ? "ai":"regex");
+  modeDot.className = "mode-dot " + (hasKey ? "ai":"regex");
+  modeText.textContent = hasKey ? "AI分析モード（Gemini 2.5 Flash）— 文脈を理解してチェックします" : "正規表現モード — パターンマッチでチェックします";
+  checkBtn.className = "btn btn-primary " + (hasKey ? "ai-mode":"");
+  checkBtnLabel.textContent = hasKey ? "🤖　AIで薬機法チェックを実行" : "🔍　薬機法チェックを実行";
+
+  if(hasKey && document.getElementById("apiKeyInput").value === ""){
+    document.getElementById("apiKeyInput").value = "●".repeat(20);
+  }
+}
+
+function toggleAiPanel(){
+  const p = document.getElementById("aiPanel");
+  const arrow = document.getElementById("aiPanelArrow");
+  p.classList.toggle("closed");
+  arrow.textContent = p.classList.contains("closed") ? "▼" : "▲";
+}
+
+// ════════════════════════════════════════════════
+// GEMINI API
+// ════════════════════════════════════════════════
+function buildGeminiPrompt(text){
+  const ctx = loadContext();
+  const cats = [...selectedCats].map(c=>({food:"食品・サプリメント",cosmetic:"化粧品・スキンケア",quasi:"医薬部外品"}[c]||c)).join("、");
+  const MED_LABELS = {
+    general:"一般広告（汎用）",amazon:"Amazon",rakuten:"楽天市場",shopify:"Shopify D2C",
+    tiktok:"TikTok Shop",sns:"SNS広告（Meta/Instagram/X）",
+    package:"商品パッケージ",flyer:"チラシ・リーフレット",pop:"店頭POP",
+    catalog:"カタログ・パンフレット",press:"プレスリリース",lp:"LP（ランディングページ）"
+  };
+  const medLabel = MED_LABELS[selectedMed] || selectedMed;
+  const kinousei = document.getElementById("swKinousei").checked;
+  const keihyo   = document.getElementById("swKeihyo").checked;
+
+  const approvedStr = ctx.approvedExpressions.length
+    ? "以下はORYZAEが使用を承認している表現です（問題なしとして扱ってください）:\n" + ctx.approvedExpressions.map(e=>`- ${e}`).join("\n") : "";
+  const fpStr = ctx.falsePositivePatterns.length
+    ? "以下の表現が含まれていても、薬機法上の問題なしとして扱ってください（安全注意書き・文脈上問題ない表現）:\n" + ctx.falsePositivePatterns.map(e=>`- ${e}`).join("\n") : "";
+  const noteStr = ctx.companyNote ? `\n## 会社・製品情報\n${ctx.companyNote}` : "";
+  const channelNote = CHANNEL_RULES_TEXT[selectedMed] ? `\n## 媒体固有の注意点（${medLabel}）\n${CHANNEL_RULES_TEXT[selectedMed]}` : "";
+
+  return `あなたは日本の薬機法・景品表示法の専門アドバイザーです。広告テキストをチェックし、法的リスクのある表現を特定して代替案を提案してください。${noteStr}
+
+## チェック条件
+- 商品カテゴリ：${cats}
+- 媒体：${medLabel}
+- 機能性表示食品モード：${kinousei ? "ON（届出済み前提で判定を緩和）" : "OFF"}
+- 景表法チェック：${keihyo ? "ON（優良誤認・No.1表示等も含める）" : "OFF（薬機法のみ）"}
+
+${approvedStr}
+${fpStr}
+${channelNote}
+
+## 重要な判断基準
+- 「アレルギーをお持ちの方はご注意ください」等の安全注意書きは問題なし
+- 「〇〇の方向け」という使用シーン説明は疾病名でも文脈次第で判断する
+- 発酵・麹関連の製法説明は問題なし（「米麹発酵技術を使用」等）
+- 「腸活」「菌活」「リカバリー」等のグレーゾーン表現は文脈に関わらず最低でも中リスクとする
+- 「個人の感想です」免責は、本文の効能表現を正当化しない
+- SNS媒体の場合はハッシュタグでの効能訴求も規制対象として評価する
+- 機能性表示食品モードがONの場合、届出機能性表示は許容する
+
+## チェックするテキスト
+${text}
+
+## 必ずこのJSON形式のみで回答してください（説明文は不要）
+{
+  "overall_risk": "high" | "mid" | "low" | "safe",
+  "summary": "全体評価の一言コメント（日本語、1〜2文）",
+  "issues": [
+    {
+      "phrase": "問題のある具体的な表現（テキストから抜き出した原文そのまま）",
+      "risk": "high" | "mid" | "low",
+      "law": "yakki" | "keihyo" | "both",
+      "reason": "なぜ問題なのか（薬機法・景表法の観点から、具体的に）",
+      "alternatives": ["代替表現1", "代替表現2", "代替表現3"],
+      "autofix": "自動修正候補（原文と置き換える短い表現。ない場合はnull）"
+    }
+  ],
+  "corrected_text": "問題箇所を修正した全文",
+  "safe_expressions": ["この文章の中で安全に使えている良い表現1", "良い表現2"],
+  "strategic_advice": "この商品の強みを法的に安全に伝えるための全体戦略アドバイス（2〜3文）",
+  "channel_advice": "掲載媒体（${medLabel}）固有のアドバイス（該当する場合。ない場合はnull）"
+}`;
+}
+
+async function callGeminiAPI(text){
+  const apiKey = getApiKey();
+  const prompt = buildGeminiPrompt(text);
+  const res = await fetch(GEMINI_URL + apiKey, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      contents:[{parts:[{text:prompt}]}],
+      generationConfig:{temperature:0.1, maxOutputTokens:2048}
+    })
+  });
+  if(!res.ok){
+    const err = await res.json();
+    throw new Error(err.error?.message || `HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  // JSONを抽出
+  const match = raw.match(/\{[\s\S]*\}/);
+  if(!match) throw new Error("AIの返答形式が不正です。");
+  return JSON.parse(match[0]);
+}
+
+// ════════════════════════════════════════════════
+// MAIN CHECK
+// ════════════════════════════════════════════════
+async function runCheck(){
+  const text = document.getElementById("inputText").value.trim();
+  if(!text){alert("テキストを入力してください。");return}
+  originalText = text;
+  document.getElementById("fixText").value = text;
+
+  const btn = document.getElementById("checkBtn");
+  const apiKey = getApiKey();
+
+  // loading state
+  btn.disabled = true;
+  btn.classList.add("loading");
+  document.getElementById("checkBtnLabel").textContent = apiKey ? "🤖 AI分析中..." : "🔍 チェック中...";
+
+  try {
+    if(apiKey){
+      // AI mode
+      const aiData = await callGeminiAPI(text);
+      lastCheckWasAI = true;
+      renderResultsFromAI(aiData, text);
+    } else {
+      // Regex fallback
+      lastCheckWasAI = false;
+      runRegexCheck(text);
+    }
+  } catch(e) {
+    console.error(e);
+    alert(`AI分析でエラーが発生しました:\n${e.message}\n\n正規表現モードで再試行します。`);
+    lastCheckWasAI = false;
+    runRegexCheck(text);
+  }
+
+  btn.disabled = false;
+  btn.classList.remove("loading");
+  updateModeUI();
+
+  document.getElementById("results").style.display = "block";
+  document.getElementById("results").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+// ── Regex mode ──
+function runRegexCheck(text){
+  const ctx        = loadContext();
+  const useKeihyo  = document.getElementById("swKeihyo").checked;
+  const kinousei   = document.getElementById("swKinousei").checked;
+
+  // 学習済みの誤検知パターンをテキストから無効化してからマッチング
+  let checkText = text;
+  if(ctx.falsePositivePatterns && ctx.falsePositivePatterns.length > 0){
+    ctx.falsePositivePatterns.forEach(fp => {
+      if(fp && fp.length > 0){
+        // 誤検知フレーズをスペースに置換（元の文字数を保持して位置ずれを防ぐ）
+        checkText = checkText.split(fp).join('\u3000'.repeat(fp.length));
+      }
+    });
+  }
+
+  currentIssues = [];
+  const foundIds = new Set();
+  RULES.forEach(rule => {
+    if(!rule.cats.some(c=>selectedCats.has(c))) return;
+    if(rule.law==="keihyo" && !useKeihyo) return;
+    rule.patterns.forEach(p => {
+      const re = new RegExp(p.source, p.flags);
+      if(re.test(checkText) && !foundIds.has(rule.id)){
+        foundIds.add(rule.id);
+        let adj = rule.risk;
+        if(kinousei && rule.kinousei_ok) adj = "low";
+        currentIssues.push({...rule, adjustedRisk:adj, isAI:false});
+      }
+    });
+  });
+
+  // エスカレーションルール（文脈依存）
+  ESCALATION_RULES.forEach(rule => {
+    if(foundIds.has(rule.id)) return;
+    const re = new RegExp(rule.pattern.source, rule.pattern.flags);
+    if(!re.test(checkText)) return;
+    foundIds.add(rule.id);
+    let adj = rule.base_risk;
+    let reason = rule.reason;
+    // エスカレーション判定
+    if(rule.escalation_patterns && rule.escalation_patterns.length > 0){
+      for(const ep of rule.escalation_patterns){
+        const epRe = new RegExp(ep.source, ep.flags);
+        if(epRe.test(checkText)){
+          adj = "high";
+          reason = rule.escalation_reason || reason;
+          break;
+        }
+      }
+    }
+    currentIssues.push({
+      id: rule.id, phrase: rule.phrase, cats:["food","cosmetic","quasi"],
+      law:"yakki", reason, alts: rule.alts || [], autofix: null,
+      adjustedRisk: adj, isAI: false
+    });
+  });
+
+  // チャネル固有ルール
+  const chRules = CHANNEL_SPECIFIC_RULES[selectedMed] || [];
+  chRules.forEach(rule => {
+    if(foundIds.has(rule.id)) return;
+    const re = new RegExp(rule.pattern.source, rule.pattern.flags);
+    if(!re.test(checkText)) return;
+    foundIds.add(rule.id);
+    currentIssues.push({
+      id: rule.id, phrase: rule.phrase, cats:["food","cosmetic","quasi"],
+      law:"keihyo", reason: rule.reason, alts: rule.alts || [], autofix: null,
+      adjustedRisk: rule.risk, isAI: false
+    });
+  });
+
+  renderResultsFromRegex(text);
+  saveCheckToHistory(text, currentIssues.length>0 ? currentIssues[0].adjustedRisk : "safe", currentIssues.length, false, null);
+}
+
+// ════════════════════════════════════════════════
+// RENDER — AI mode
+// ════════════════════════════════════════════════
+function renderResultsFromAI(data, text){
+  const issues = data.issues || [];
+  // Convert AI response to currentIssues format
+  currentIssues = issues.map((iss, i) => ({
+    id: "ai_"+i,
+    phrase: iss.phrase,
+    adjustedRisk: iss.risk || "mid",
+    law: iss.law || "yakki",
+    reason: iss.reason,
+    alts: iss.alternatives || [],
+    autofix: iss.autofix || null,
+    isAI: true,
+    patterns: [new RegExp(escapeRegex(iss.phrase), "g")]
+  }));
+
+  const risk = data.overall_risk || "safe";
+  renderBanner(risk, data.summary || "", true);
+  renderCounters();
+  renderIssueList();
+  renderHighlight(text);
+  renderFixTab(data.corrected_text || text);
+  renderSafeExprs(data.safe_expressions || []);
+  renderStrategicAdvice(data.strategic_advice || null, data.channel_advice || null);
+  renderTips();
+
+  document.getElementById("aiTag").style.display = "block";
+  saveCheckToHistory(text, risk, currentIssues.length, true, data.summary);
+}
+
+// ════════════════════════════════════════════════
+// RENDER — Regex mode
+// ════════════════════════════════════════════════
+function renderResultsFromRegex(text){
+  const high = currentIssues.filter(i=>i.adjustedRisk==="high");
+  const risk = high.length>0?"high":currentIssues.filter(i=>i.adjustedRisk==="mid").length>0?"mid":currentIssues.length>0?"low":"safe";
+  renderBanner(risk, "", false);
+  renderCounters();
+  renderIssueList();
+  renderHighlight(text);
+  renderFixTab(null);
+  renderSafeExprs([]);
+  renderStrategicAdvice(null, null);
+  renderTips();
+  document.getElementById("aiTag").style.display = "none";
+}
+
+// ── Banner ──
+function renderBanner(risk, summary, isAI){
+  const banner = document.getElementById("scoreBanner");
+  const icon   = document.getElementById("scoreIcon");
+  const title  = document.getElementById("scoreTitle");
+  const sub    = document.getElementById("scoreSub");
+  if(risk==="safe"){
+    banner.className="score-banner safe"; icon.textContent="✅";
+    title.textContent="問題なし";
+    sub.textContent = summary || "検出された薬機法・景表法リスク表現はありませんでした。";
+  } else if(risk==="high"){
+    banner.className="score-banner danger"; icon.textContent="🚨";
+    title.textContent="高リスクの表現が含まれています";
+    sub.textContent = summary || "そのまま使用すると薬機法・景表法違反となる可能性があります。代替案に従って修正してください。";
+  } else {
+    banner.className="score-banner warn"; icon.textContent="⚠️";
+    title.textContent="注意が必要な表現があります";
+    sub.textContent = summary || "グレーゾーンの表現が含まれています。代替案を参考に見直しをおすすめします。";
+  }
+}
+
+// ── Counters ──
+function renderCounters(){
+  const high    = currentIssues.filter(i=>i.adjustedRisk==="high").length;
+  const mid     = currentIssues.filter(i=>i.adjustedRisk==="mid").length;
+  const low     = currentIssues.filter(i=>i.adjustedRisk==="low").length;
+  const keihyo  = currentIssues.filter(i=>i.law==="keihyo"||i.law==="both").length;
+  const cr = document.getElementById("counterRow");
+  cr.innerHTML = "";
+  if(high)   cr.innerHTML+=`<div class="count-pill high">🚨 高リスク ${high}件</div>`;
+  if(mid)    cr.innerHTML+=`<div class="count-pill mid">⚠️ 中リスク ${mid}件</div>`;
+  if(low)    cr.innerHTML+=`<div class="count-pill low">ℹ️ 要注意 ${low}件</div>`;
+  if(keihyo) cr.innerHTML+=`<div class="count-pill keihyo">🔵 景表法 ${keihyo}件</div>`;
+  const tc = document.getElementById("tabCount");
+  if(currentIssues.length>0){tc.textContent=currentIssues.length;tc.style.display="inline"}
+  else tc.style.display="none";
+}
+
+// ── Issue list ──
+function renderIssueList(){
+  const il = document.getElementById("issueList");
+  const allOk = document.getElementById("allOkMsg");
+  const kinousei = document.getElementById("swKinousei").checked;
+  if(currentIssues.length===0){il.innerHTML="";allOk.style.display="block";return}
+  allOk.style.display="none";
+  il.innerHTML = currentIssues.map((issue,idx) => {
+    const rc = (issue.law==="keihyo"||issue.law==="both") && issue.adjustedRisk!=="high" && issue.adjustedRisk!=="mid" ? "keihyo" : issue.adjustedRisk;
+    const rl = rc==="high"?"🚨 高リスク":rc==="mid"?"⚠️ 中リスク":rc==="keihyo"?"🔵 景表法":"ℹ️ 要注意";
+    const lb = (issue.law==="keihyo"||issue.law==="both") ? '<span class="law-badge">景表法</span>' : '<span class="law-badge">薬機法</span>';
+    const mn = issue.media_notes && issue.media_notes[selectedMed]
+      ? `<div class="medium-note">📱 ${selectedMed}向け：${issue.media_notes[selectedMed]}</div>` : "";
+    const kn = kinousei && issue.kinousei_ok && issue.kinousei_alt
+      ? `<div class="medium-note" style="background:#ecfdf5;color:#047857">✅ 機能性表示食品モード：${issue.kinousei_alt}</div>` : "";
+    return `
+      <div class="issue-item ${rc}" id="issue_${idx}">
+        <div class="issue-header">
+          <span class="risk-badge ${rc}">${rl}</span>${lb}
+          <span class="issue-phrase">「${escHtml(issue.phrase)}」</span>
+          ${issue.isAI?'<span style="font-size:10px;background:#f0fdf4;color:#065f46;padding:1px 6px;border-radius:8px;font-weight:700">AI</span>':''}
+        </div>
+        <div class="issue-reason">${escHtml(issue.reason)}</div>
+        ${mn}${kn}
+        <div class="alt-box">
+          <div class="alt-title">💡 代替案・アドバイス</div>
+          ${issue.alts.map(a=>`<div class="alt-item">${escHtml(a)}</div>`).join("")}
+        </div>
+        <div class="feedback-row no-print">
+          <button class="btn btn-ghost btn-sm" onclick="markFalsePositive('${escAttr(issue.phrase)}',${idx})" title="この判定は誤りとして登録">✗ 誤検知として登録</button>
+          <span class="fp-msg" id="fp_${idx}">登録しました ✓</span>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+// ── Highlight ──
+function renderHighlight(text){
+  let h = escHtml(text);
+  currentIssues.forEach(issue => {
+    const cls = (issue.law==="keihyo"||issue.law==="both") && issue.adjustedRisk!=="high" && issue.adjustedRisk!=="mid" ? "keihyo" : issue.adjustedRisk;
+    if(issue.patterns){
+      issue.patterns.forEach(p => {
+        const re = new RegExp(p.source, p.flags.replace("g","")+"g");
+        h = h.replace(re, m=>`<mark class="${cls}">${m}</mark>`);
+      });
+    }
+  });
+  document.getElementById("previewBox").innerHTML = h;
+}
+
+// ── Fix tab ──
+function renderFixTab(aiCorrected){
+  if(aiCorrected){
+    document.getElementById("fixText").value = aiCorrected;
+    document.getElementById("fixNote").textContent = "🤖 AIが生成した修正候補です。文脈に合わせて編集してからお使いください。";
+  } else {
+    document.getElementById("fixText").value = originalText;
+    document.getElementById("fixNote").textContent = "💡 「自動修正を適用」で正規表現ベースの修正候補を生成します。文脈に合わせて編集してからお使いください。";
+  }
+  // Issue guide
+  const guide = document.getElementById("fixIssueGuide");
+  if(currentIssues.length===0){guide.innerHTML="";return}
+  guide.innerHTML = `
+    <div style="font-size:13px;font-weight:700;color:var(--brand);margin-bottom:9px">検出された表現と推奨置換</div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+    ${currentIssues.filter(i=>i.autofix).map(i=>`
+      <div style="background:var(--gray-light);border-radius:7px;padding:9px 12px;font-size:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="color:var(--danger);font-weight:700">「${escHtml(i.phrase)}」</span>
+        <span style="color:var(--gray)">→</span>
+        <span style="color:var(--ok);font-weight:700">「${escHtml(i.autofix)}」</span>
+      </div>`).join("")}
+    </div>`;
+}
+
+// ── Safe expressions (AI only) ──
+function renderSafeExprs(exprs){
+  const box = document.getElementById("safeExprsBox");
+  const inner = document.getElementById("safeExprs");
+  if(!exprs || exprs.length===0){box.style.display="none";return}
+  box.style.display="block";
+  inner.innerHTML = exprs.map(e=>`<span class="safe-tag">${escHtml(e)}</span>`).join("");
+}
+
+function renderStrategicAdvice(strategic, channel){
+  const sBox = document.getElementById("strategicAdviceBox");
+  const sText = document.getElementById("strategicAdviceText");
+  const cBox = document.getElementById("channelAdviceBox");
+  const cText = document.getElementById("channelAdviceText");
+  if(strategic){
+    sBox.style.display="block";
+    sText.textContent = strategic;
+  } else { sBox.style.display="none"; }
+  if(channel && channel !== "null"){
+    cBox.style.display="block";
+    cText.textContent = channel;
+  } else { cBox.style.display="none"; }
+}
+
+// ════════════════════════════════════════════════
+// HISTORY
+// ════════════════════════════════════════════════
+function saveCheckToHistory(text, risk, issueCount, isAI, summary){
+  const history = loadHistory();
+  const record = {
+    id: Date.now(),
+    date: new Date().toLocaleString("ja-JP"),
+    snippet: text.slice(0,60) + (text.length>60?"…":""),
+    text: text,
+    risk: risk,
+    issueCount: issueCount,
+    isAI: isAI,
+    summary: summary || "",
+    issues: currentIssues.map(i=>({phrase:i.phrase,risk:i.adjustedRisk,law:i.law,alts:i.alts}))
+  };
+  history.unshift(record);
+  if(history.length > MAX_HISTORY) history.pop();
+  saveHistory(history);
+}
+
+function renderHistory(){
+  const history = loadHistory();
+  const count = document.getElementById("histCount");
+  const list  = document.getElementById("histList");
+  count.textContent = `${history.length}件の履歴（最大${MAX_HISTORY}件保存）`;
+  if(history.length===0){
+    list.innerHTML = `<div class="hist-empty">📭 まだ履歴がありません。チェックを実行すると自動で保存されます。</div>`;
+    return;
+  }
+  list.innerHTML = history.map((h,i) => `
+    <div class="hist-item">
+      <div class="hist-header" onclick="toggleHist(${i})">
+        <span class="hist-date">${h.date}</span>
+        <span class="hist-snippet">${escHtml(h.snippet)}</span>
+        <span class="hist-risk ${h.risk}">${h.risk==="safe"?"✅ 問題なし":h.risk==="high"?"🚨 高リスク":h.risk==="mid"?"⚠️ 中リスク":"ℹ️ 要注意"}</span>
+        ${h.isAI?'<span style="font-size:10px;background:#f0fdf4;color:#065f46;border-radius:8px;padding:2px 6px;font-weight:700;flex-shrink:0">AI</span>':''}
+        <span style="font-size:12px;color:var(--gray);flex-shrink:0">${h.issueCount}件</span>
+      </div>
+      <div class="hist-body" id="hist_${i}">
+        ${h.summary?`<p style="font-size:13px;color:var(--text-light);margin-bottom:8px">${escHtml(h.summary)}</p>`:""}
+        <div style="background:var(--white);border-radius:7px;padding:10px;font-size:13px;color:var(--text);max-height:120px;overflow:auto;margin-bottom:9px">${escHtml(h.text)}</div>
+        ${h.issues.length>0?`<div style="font-size:12px;color:var(--text-light);margin-bottom:6px">検出された表現：</div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:9px">
+          ${h.issues.map(iss=>`<div style="font-size:12px;padding:4px 9px;background:var(--white);border-radius:5px;border-left:3px solid ${iss.risk==="high"?'var(--danger)':iss.risk==="mid"?'#f59e0b':'#3b82f6'}">
+            「${escHtml(iss.phrase)}」
+          </div>`).join("")}
+        </div>`:""}
+        <div class="hist-actions">
+          <button class="btn btn-ok btn-sm" onclick="loadHistText(${i})">このテキストを再チェック</button>
+          <button class="btn btn-ghost btn-sm" onclick="copyHistText(${i})">テキストをコピー</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteHist(${i})">削除</button>
+        </div>
+      </div>
+    </div>`).join("");
+}
+
+function toggleHist(i){
+  const b = document.getElementById("hist_"+i);
+  b.classList.toggle("open");
+}
+function loadHistText(i){
+  const h = loadHistory()[i];
+  if(!h)return;
+  document.getElementById("inputText").value = h.text;
+  document.getElementById("charCount").textContent = h.text.length;
+  switchTab("check");
+  document.querySelector(".card.no-print").scrollIntoView({behavior:"smooth"});
+}
+function copyHistText(i){
+  const h = loadHistory()[i];
+  if(!h)return;
+  navigator.clipboard.writeText(h.text).then(()=>await re��ピーしました"));
+}
+function deleteHist(i){
+  if(!confirm("この履歴を削除しますか？"))return;
+  const h = loadHistory();
+  h.splice(i,1);
+  saveHistory(h);
+  renderHistory();
+}
+
+// ════════════════════════════════════════════════
+// LEARNING
+// ════════════════════════════════════════════════
+function markFalsePositive(phrase, idx){
+  const ctx = loadContext();
+  if(!ctx.falsePositivePatterns.includes(phrase)){
+    ctx.falsePositivePatterns.push(phrase);
+    saveContext(ctx);
+  }
+  const fp = document.getElementById("fp_"+idx);
+  if(fp){fp.classList.add("show");setTimeout(()=>fp.classList.remove("show"),2000)}
+  renderLearning();
+}
+function addApproved(){
+  const val = document.getElementById("newApprovedInput").value.trim();
+  if(!val)return;
+  const ctx = loadContext();
+  if(!ctx.approvedExpressions.includes(val)) ctx.approvedExpressions.push(val);
+  saveContext(ctx);
+  document.getElementById("newApprovedInput").value = "";
+  renderLearning();
+  renderLibrary();
+}
+function removeApproved(i){
+  const ctx = loadContext(); ctx.approvedExpressions.splice(i,1); saveContext(ctx); renderLearning(); renderLibrary();
+}
+function addFp(){
+  const val = document.getElementById("newFpInput").value.trim();
+  if(!val)return;
+  const ctx = loadContext();
+  if(!ctx.falsePositivePatterns.includes(val)) ctx.falsePositivePatterns.push(val);
+  saveContext(ctx);
+  document.getElementById("newFpInput").value = "";
+  renderLearning();
+}
+function removeFp(i){
+  const ctx = loadContext(); ctx.falsePositivePatterns.splice(i,1); saveContext(ctx); renderLearning();
+}
+function saveContextNote(){
+  const val = document.getElementById("contextNote").value;
+  const ctx = loadContext(); ctx.companyNote = val; saveContext(ctx);
+  await r保存しました。次回チェック時からAIに反映されます。");
+}
+function renderLearning(){
+  const ctx = loadContext();
+  const history = loadHistory();
+  // Stats
+  document.getElementById("learnStats").innerHTML = `
+    <div class="stat-pill"><strong>${history.length}</strong>チェック履歴</div>
+    <div class="stat-pill"><strong>${ctx.approvedExpressions.length}</strong>承認済み表現</div>
+    <div class="stat-pill"><strong>${ctx.falsePositivePatterns.length}</strong>誤検知パターン</div>
+    <div class="stat-pill"><strong>${history.filter(h=>h.isAI).length}</strong>AI分析回数</div>`;
+  // Context note
+  document.getElementById("contextNote").value = ctx.companyNote || "";
+  // Approved
+  document.getElementById("approvedList").innerHTML = ctx.approvedExpressions.length===0
+    ? '<p style="font-size:12px;color:var(--gray)">まだ登録されていません</p>'
+    : ctx.approvedExpressions.map((e,i)=>`
+        <div class="learn-item approved">
+          <span class="learn-item-text">${escHtml(e)}</span>
+          <button class="btn btn-ghost btn-sm" onclick="removeApproved(${i})">削除</button>
+        </div>`).join("");
+  // FP list
+  document.getElementById("fpList").innerHTML = ctx.falsePositivePatterns.length===0
+    ? '<p style="font-size:12px;color:var(--gray)">まだ登録されていません</p>'
+    : ctx.falsePositivePatterns.map((e,i)=>`
+        <div class="learn-item fp">
+          <span class="learn-item-text">${escHtml(e)}</span>
+          <button class="btn btn-ghost btn-sm" onclick="removeFp(${i})">削除</button>
+        </div>`).join("");
+}
+function exportLearning(){
+  const data = {context:loadContext(), history:loadHistory(), exportedAt:new Date().toISOString()};
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = `oryzae_yakki_learning_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+function importLearning(event){
+  const file = event.target.files[0];
+  if(!file)return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const data = JSON.parse(e.target.result);
+      if(data.context) saveContext(data.context);
+      if(data.history) saveHistory(data.history);
+      renderLearning();
+      renderHistory();
+      renderLibrary();
+      await re��ンポートしました。");
+    }catch(err){alert("ファイルの読み込みに失敗しました: "+err.message)}
+  };
+  reader.readAsText(file);
+  event.target.value = "";
+}
+function resetLearning(){
+  localStorage.removeItem(KEY_CONTEXT);
+  localStorage.removeItem(KEY_HISTORY);
+  renderLearning();
+  renderHistory();
+  await re��セットしました。");
+}
+
+// ════════════════════════════════════════════════
+// LIBRARY
+// ════════════════════════════════════════════════
+let currentLibCat = "all";
+function renderLibrary(){
+  const ctx = loadContext();
+  const customItems = ctx.approvedExpressions.map(e=>({cat:"custom",text:e,tag:"学習済み"}));
+  const allItems = [...OK_LIBRARY_BASE, ...customItems];
+  const items = currentLibCat==="all" ? allItems : allItems.filter(i=>i.cat===currentLibCat);
+  document.getElementById("libGrid").innerHTML = items.map(item=>`
+    <div class="lib-item" onclick="copyLibItem(this,'${escAttr(item.text)}')">
+      <div class="lib-text">${escHtml(item.text)}</div>
+      <div>
+        <div class="lib-tag">${item.tag}</div>
+        <div style="font-size:10px;color:var(--gray);margin-top:3px;text-align:center">コピー</div>
+      </div>
+    </div>`).join("") || '<p style="font-size:13px;color:var(--gray);padding:10px">表現がありません。AI学習タブで追加できます。</p>';
+}
+function copyLibItem(el,text){
+  navigator.clipboard.writeText(text).then(()=>{el.style.background="#d1fae5";setTimeout(()=>el.style.background="",600)});
+}
+
+// ════════════════════════════════════════════════
+// TIPS
+// ════════════════════════════════════════════════
+function renderTips(){
+  document.getElementById("tipsGrid").innerHTML = TIPS_DATA.map(t=>`
+    <div class="tip-card">
+      <div class="tip-title">NG → OK 言い換え例</div>
+      <div class="tip-ng">✗ ${t.ng}</div>
+      <div class="arrow-txt">↓</div>
+      <div class="tip-ok">✓ ${t.ok}</div>
+    </div>`).join("");
+}
+
+// ════════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════════
+function switchTab(name){
+  const names = ["check","preview","fix","library","tips","history","learning"];
+  document.querySelectorAll(".tab").forEach((t,i)=>t.classList.toggle("active",names[i]===name));
+  document.querySelectorAll(".tab-content").forEach(t=>t.classList.toggle("active",t.id==="tab-"+name));
+  if(name==="library") renderLibrary();
+  if(name==="tips")    renderTips();
+  if(name==="history") renderHistory();
+  if(name==="learning"){ renderLearning(); }
+}
+
+// ════════════════════════════════════════════════
+// FIX TEXT
+// ════════════════════════════════════════════════
+function applyAutoFix(){
+  let t = originalText;
+  AUTO_FIX_MAP.forEach(({from,to})=>{t=t.replace(from,to)});
+  document.getElementById("fixText").value = t;
+}
+function resetFixText(){ document.getElementById("fixText").value = originalText; }
+function copyFixText(){
+  navigator.clipboard.writeText(document.getElementById("fixText").value).then(()=>showCopied("fixCopiedMsg"));
+}
+
+// ════════════════════════════════════════════════
+// EXPORT
+// ════════════════════════════════════════════════
+function doPrint(){ window.print() }
+function copyResults(){
+  if(currentIssues.length===0){navigator.clipboard.writeText("問題のある表現は検出されませんでした。");showCopied("copiedMsg");return}
+  const lines = ["【薬機法チェック結果】", `チェック日時：${new Date().toLocaleString("ja-JP")}`, `分析方法：${lastCheckWasAI?"AI（Gemini）":"正規表現"}`, ""];
+  currentIssues.forEach(i=>{
+    const law = (i.law==="keihyo"||i.law==="both")?"景表法":"薬機法";
+    lines.push(`[${i.adjustedRisk==="high"?"高リスク":i.adjustedRisk==="mid"?"中リスク":"要注意"} / ${law}] ${i.phrase}`);
+    lines.push(`  理由：${i.reason}`);
+    i.alts.forEach(a=>lines.push(`  ✓ ${a}`));
+    lines.push("");
+  });
+  navigator.clipboard.writeText(lines.join("\n")).then(()=>showCopied("copiedMsg"));
+}
+function showCopied(id){
+  const el = document.getElementById(id);
+  el.classList.add("show");
+  setTimeout(()=>el.classList.remove("show"),2000);
+}
+
+// ════════════════════════════════════════════════
+// HELP MODAL
+// ════════════════════════════════════════════════
+function openHelp(){
+  document.getElementById("helpModal").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+function closeHelp(){
+  document.getElementById("helpModal").classList.remove("open");
+  document.body.style.overflow = "";
+}
+function closeHelpOnBg(e){
+  if(e.target === document.getElementById("helpModal")) closeHelp();
+}
+// Escキーでも閉じる
+document.addEventListener("keydown", e => { if(e.key === "Escape") closeHelp(); });
+
+function shareToSlack(){
+  const text = document.getElementById("inputText").value.trim();
+  if(!text){ alert("チェックするテキストを入力してください。"); return; }
+
+  const dt = new Date().toLocaleString("ja-JP");
+  const method = lastCheckWasAI ? "AI（Gemini 2.5 Flash）" : "正規表現";
+  const issueCount = currentIssues.length;
+
+  let lines = [];
+  lines.push("📋 *薬機法チェック結果* — ORYZAE Edition");
+  lines.push(`🕐 ${dt}　｜　🔍 ${method}`);
+  lines.push("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+  if(issueCount === 0){
+    lines.push("✅ *問題のある表現は検出されませんでした*");
+  } else {
+    const highCount = currentIssues.filter(i=>i.adjustedRisk==="high").length;
+    const midCount  = currentIssues.filter(i=>i.adjustedRisk==="mid").length;
+    const lowCount  = currentIssues.filter(i=>i.adjustedRisk==="low").length;
+    lines.push(`⚠️ *${issueCount}件の注意点が検出されました*`);
+    if(highCount) lines.push(`🔴 高リスク: ${highCount}件`);
+    if(midCount)  lines.push(`🟡 中リスク: ${midCount}件`);
+    if(lowCount)  lines.push(`🔵 要注意: ${lowCount}件`);
+    lines.push("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    currentIssues.forEach((iss, idx) => {
+      const riskLabel = iss.adjustedRisk==="high" ? "🔴 高リスク" : iss.adjustedRisk==="mid" ? "🟡 中リスク" : "🔵 要注意";
+      const law = (iss.law==="keihyo"||iss.law==="both") ? "景表法" : "薬機法";
+      lines.push(`\n*[${idx+1}] ${riskLabel} / ${law}*`);
+      lines.push(`問題箇所: 「${iss.phrase}」`);
+      lines.push(`理由: ${iss.reason}`);
+      if(iss.alts && iss.alts.length){
+        lines.push(`代替案: ${iss.alts.slice(0,2).map(a=>`「${a}」`).join("、")}`);
+      }
+    });
+  }
+  lines.push("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  lines.push("_薬機法チェッカー ORYZAE Edition_");
+
+  const slackText = lines.join("\n");
+  navigator.clipboard.writeText(slackText).then(()=>{
+    showCopied("slackCopiedMsg");
+  }).catch(()=>{
+    // fallback
+    const ta = document.createElement("textarea");
+    ta.value = slackText;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    showCopied("slackCopiedMsg");
+  });
+}
+
+// ════════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════════
+function escHtml(t){ return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>") }
+function escAttr(t){ return String(t).replace(/'/g,"&#39;").replace(/"/g,"&quot;") }
+function escapeRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&") }
+
+// ════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════
+document.getElementById("inputText").addEventListener("input",function(){
+  document.getElementById("charCount").textContent = this.value.length;
+});
+document.querySelectorAll("#catGroup .chip").forEach(btn=>{
+  btn.addEventListener("click",function(){
+    const cat=this.dataset.cat;
+    if(selectedCats.has(cat)){if(selectedCats.size===1)return;selectedCats.delete(cat);this.classList.remove("on")}
+    else{selectedCats.add(cat);this.classList.add("on")}
+  });
+});
+document.querySelectorAll("#medGroup .chip[data-med]").forEach(btn=>{
+  btn.addEventListener("click",function(){
+    document.querySelectorAll("#medGroup .chip[data-med]").forEach(b=>b.classList.remove("on"));
+    this.classList.add("on"); selectedMed=this.dataset.med;
+  });
+});
+document.querySelectorAll(".lib-cat-btn").forEach(btn=>{
+  btn.addEventListener("click",function(){
+    document.querySelectorAll(".lib-cat-btn").forEach(b=>b.classList.remove("active"));
+    this.classList.add("active"); currentLibCat=this.dataset.lib; renderLibrary();
+  });
+});
+
+// Boot
+updateModeUI();
+renderLibrary();
+// AIは常に有効（共通キー埋め込み済み）。個人キーを上書きしたい場合のみパネルを開く
+</script>
+</body>
+</html>
