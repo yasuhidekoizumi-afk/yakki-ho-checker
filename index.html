@@ -1511,7 +1511,7 @@ function loadHistText(i){
 function copyHistText(i){
   const h = loadHistory()[i];
   if(!h)return;
-  navigator.clipboard.writeText(h.text).then(()=>await re��ピーしました"));
+  navigator.clipboard.writeText(h.text).then(()=>alert("コピーしました"));
 }
 function deleteHist(i){
   if(!confirm("この履歴を削除しますか？"))return;
@@ -1611,7 +1611,7 @@ function importLearning(event){
       renderLearning();
       renderHistory();
       renderLibrary();
-      await re��ンポートしました。");
+      alert("インポートしました。");
     }catch(err){alert("ファイルの読み込みに失敗しました: "+err.message)}
   };
   reader.readAsText(file);
@@ -1622,7 +1622,7 @@ function resetLearning(){
   localStorage.removeItem(KEY_HISTORY);
   renderLearning();
   renderHistory();
-  await re��セットしました。");
+  alert("リセットしました。");
 }
 
 // ════════════════════════════════════════════════
