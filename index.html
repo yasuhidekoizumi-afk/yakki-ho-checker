@@ -495,7 +495,7 @@ mark.keihyo{background:#f3e8ff;border-bottom:2px solid #9333ea;border-radius:2px
         <span style="opacity:.8">無料枠：1分15リクエスト・1日1500リクエスト</span>
       </div>
       <div class="api-key-row">
-        <input class="api-key-input" type="password" id="apiKeyInput" placeholder="AIzaSy..." autocomplete="off">
+        <input class="api-key-input" type="password" id="apiKeyInput" placeholder="AIzaSy... (Google AI Studioで取得)" autocomplete="off">
         <button class="btn btn-ok btn-sm" onclick="saveApiKey()">保存</button>
         <button class="btn btn-ghost btn-sm" onclick="clearApiKey()">削除</button>
       </div>
@@ -685,7 +685,7 @@ const KEY_HISTORY  = 'oryzae_history';
 const KEY_CONTEXT  = 'oryzae_context';
 const MAX_HISTORY  = 80;
 const GEMINI_URL   = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=';
-const DEFAULT_API_KEY = 'AIzaSyBL_oQJhoqpbQ6IrG_9iih9vMfh5WbzHlc'; // yakki-ho-checker (ORYZAE共通)
+const DEFAULT_API_KEY = ''; // ユーザーが設定したキーを使用
 
 // ════════════════════════════════════════════════
 // DEFAULT ORYZAE CONTEXT
