@@ -1127,7 +1127,7 @@ async function callGeminiAPI(text){
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({
       contents:[{parts:[{text:prompt}]}],
-      generationConfig:{temperature:0.1, maxOutputTokens:2048}
+      generationConfig:{temperature:0.1, maxOutputTokens:8192}
     })
   });
   if(!res.ok){
@@ -1137,9 +1137,10 @@ async function callGeminiAPI(text){
   const data = await res.json();
   const raw = (data.candidates?.[0]?.content?.parts?.find(p=>!p.thought)||data.candidates?.[0]?.content?.parts?.[0])?.text || "";
   // JSONを抽出
-  const match = raw.match(/\{[\s\S]*\}/);
-  if(!match) throw new Error("AIの返答形式が不正です。");
-  return JSON.parse(match[0]);
+  const fenceMatch = raw.match(/```json[\s\S]*?```/);
+        const jsonStr = fenceMatch ? fenceMatch[0].replace(/```json\s*/, '').replace(/\s*```$/, '') : (raw.match(/\{[\s\S]*\}/) || [''])[0];
+        if(!jsonStr) throw new Error("AIの返答形式が不正です。");
+        return JSON.parse(jsonStr);
 }
 
 // ════════════════════════════════════════════════
